@@ -169,13 +169,34 @@
             margin: 0 auto;
             font-size: 1.5rem;
         }
-        /* 修复标签页显示问题 - 确保只有一个标签面板显示 */
-        .tab-content .tab-pane {
+        /* 通用标签页系统 - 确保只有一个标签面板显示 */
+        .tab-system .tab-content .tab-pane {
             display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            position: absolute !important;
+            left: -9999px !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
         
-        .tab-content .tab-pane.active.show {
+        .tab-system .tab-content .tab-pane.active.show {
             display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            height: auto !important;
+            overflow: visible !important;
+            position: relative !important;
+            left: auto !important;
+            margin: initial !important;
+            padding: initial !important;
+        }
+        
+        /* 确保Bootstrap的默认显示被覆盖 */
+        #tasks-page .tab-pane:not(.active) {
+            display: none !important;
         }
     </style>
 </head>
@@ -429,7 +450,8 @@
                 <h2 class="mb-4">资源管理</h2>
                 
                 <!-- 资源类型标签页 -->
-                <ul class="nav nav-tabs mb-4" id="resourceTabs">
+                <div class="tab-system">
+                    <ul class="nav nav-tabs mb-4" id="resourceTabs">
                     <li class="nav-item">
                         <a class="nav-link active" data-bs-toggle="tab" href="#resource-overview">
                             <i class="fas fa-chart-pie me-2"></i>资源概览
@@ -1539,6 +1561,7 @@
                         </div>
                     </div>
                 </div>
+                </div> <!-- tab-system -->
             </div>
 
             <!-- 任务管理页面 -->
@@ -1546,7 +1569,8 @@
                 <h2 class="mb-4">任务管理</h2>
                 
                 <!-- 任务管理标签页 -->
-                <ul class="nav nav-tabs mb-4" id="taskTabs">
+                <div class="tab-system">
+                    <ul class="nav nav-tabs mb-4" id="taskTabs">
                     <li class="nav-item">
                         <a class="nav-link active" data-bs-toggle="tab" href="#historical-tasks">
                             <i class="fas fa-history me-2"></i>历史任务
@@ -2229,6 +2253,7 @@
                         </div>
                     </div>
                 </div>
+                </div> <!-- tab-system -->
             </div>
 
             <!-- 调度规则页面 -->
@@ -3063,5 +3088,105 @@
     <script src="js/resource-management.js"></script>
     <script src="js/scheduling-management.js"></script>
     <script src="js/task-management.js"></script>
+    
+    <script>
+    // 通用标签页系统管理
+    class TabManager {
+        constructor() {
+            this.init();
+        }
+        
+        init() {
+            // 页面加载完成后初始化标签系统
+            document.addEventListener('DOMContentLoaded', () => {
+                this.fixAllTabDisplays();
+                // 延迟修复，确保Bootstrap完全初始化
+                setTimeout(() => this.fixAllTabDisplays(), 100);
+                setTimeout(() => this.fixAllTabDisplays(), 500);
+                
+                // 绑定标签点击事件
+                this.bindTabEvents();
+            });
+        }
+        
+        // 修复所有页面的标签显示问题
+        fixAllTabDisplays() {
+            const tabContainers = document.querySelectorAll('.tab-system');
+            tabContainers.forEach(container => {
+                this.fixTabDisplay(container);
+            });
+        }
+        
+        // 修复单个容器的标签显示
+        fixTabDisplay(container) {
+            const tabPanes = container.querySelectorAll('.tab-content .tab-pane');
+            tabPanes.forEach(pane => {
+                if (pane.classList.contains('active') && pane.classList.contains('show')) {
+                    // 显示活动标签页
+                    this.showTabPane(pane);
+                } else {
+                    // 隐藏非活动标签页
+                    this.hideTabPane(pane);
+                    pane.classList.remove('active', 'show');
+                }
+            });
+        }
+        
+        // 绑定标签点击事件
+        bindTabEvents() {
+            document.addEventListener('click', (e) => {
+                const tabLink = e.target.closest('[data-bs-toggle="tab"]');
+                if (tabLink) {
+                    const targetId = tabLink.getAttribute('href').substring(1);
+                    const container = tabLink.closest('.tab-system');
+                    
+                    if (container) {
+                        // 立即隐藏所有标签页
+                        const allPanes = container.querySelectorAll('.tab-content .tab-pane');
+                        allPanes.forEach(pane => {
+                            pane.classList.remove('active', 'show');
+                            this.hideTabPane(pane);
+                        });
+                        
+                        // 显示目标标签页
+                        const targetPane = container.querySelector(`#${targetId}`);
+                        if (targetPane) {
+                            targetPane.classList.add('active', 'show');
+                            this.showTabPane(targetPane);
+                        }
+                        
+                        // 延迟再次修复，确保Bootstrap处理完成
+                        setTimeout(() => this.fixTabDisplay(container), 50);
+                    }
+                }
+            });
+        }
+        
+        // 显示标签页
+        showTabPane(pane) {
+            pane.style.display = 'block';
+            pane.style.opacity = '1';
+            pane.style.visibility = 'visible';
+            pane.style.height = 'auto';
+            pane.style.overflow = 'visible';
+            pane.style.position = 'relative';
+            pane.style.left = 'auto';
+        }
+        
+        // 隐藏标签页
+        hideTabPane(pane) {
+            pane.style.display = 'none';
+            pane.style.opacity = '0';
+            pane.style.visibility = 'hidden';
+            pane.style.height = '0';
+            pane.style.overflow = 'hidden';
+            pane.style.position = 'absolute';
+            pane.style.left = '-9999px';
+        }
+    }
+    
+    // 初始化标签管理器
+    new TabManager();
+    </script>
 </body>
 </html>
