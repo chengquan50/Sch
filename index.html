@@ -1,0 +1,3067 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>显示面板仿真服务调度系统</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- D3.js for DAG visualization -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    
+    <style>
+        .sidebar {
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding-top: 20px;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            padding: 12px 20px;
+            margin: 5px 10px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: white;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            min-height: 100vh;
+            background: #f8f9fa;
+        }
+        
+        .top-navbar {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 30px;
+            margin-bottom: 30px;
+        }
+        
+        .content-wrapper {
+            padding: 0 30px 30px;
+        }
+        
+        .card {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: none;
+            margin-bottom: 30px;
+            transition: all 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .metric-card {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-running { background-color: #28a745; }
+        .status-idle { background-color: #ffc107; }
+        .status-error { background-color: #dc3545; }
+        
+        .resource-item {
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        
+        .resource-item:hover {
+            background: #f8f9fa;
+            border-color: #007bff;
+        }
+        
+        .dag-container {
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            background: white;
+        }
+        
+        .gantt-container {
+            height: 300px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+            overflow-x: auto;
+        }
+        
+        .page-content {
+            display: none;
+        }
+        
+        .page-content.active {
+            display: block;
+        }
+        
+        .logo {
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-decoration: none;
+            padding: 0 20px;
+            margin-bottom: 30px;
+            display: block;
+        }
+        
+        .system-title {
+            color: #333;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .user-info {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .avatar-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            font-size: 1.5rem;
+        }
+        /* 修复标签页显示问题 - 确保只有一个标签面板显示 */
+        .tab-content .tab-pane {
+            display: none !important;
+        }
+        
+        .tab-content .tab-pane.active.show {
+            display: block !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <nav class="sidebar">
+        <a href="#" class="logo">
+            <i class="fas fa-cogs"></i> 调度仿真系统
+        </a>
+        
+        <ul class="nav nav-pills flex-column">
+            <li class="nav-item">
+                <a class="nav-link active" href="#" onclick="showPage('dashboard-page')">
+                    <i class="fas fa-tachometer-alt me-2"></i> 仪表盘
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showPage('resources-page')">
+                    <i class="fas fa-server me-2"></i> 资源管理
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showPage('tasks-page')">
+                    <i class="fas fa-tasks me-2"></i> 任务管理
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showPage('rules-page')">
+                    <i class="fas fa-cogs me-2"></i> 调度规则
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showPage('simulation-page')">
+                    <i class="fas fa-play-circle me-2"></i> 仿真运行
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showPage('results-page')">
+                    <i class="fas fa-chart-line me-2"></i> 结果统计
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- 主内容区域 -->
+    <div class="main-content">
+        <!-- 顶部导航栏 -->
+        <div class="top-navbar d-flex justify-content-between align-items-center">
+            <h1 class="system-title">显示面板仿真服务调度系统</h1>
+            <div class="user-info">
+                <i class="fas fa-user-circle me-2"></i> 当前用户：Operator
+                <span class="badge bg-primary ms-2">在线</span>
+            </div>
+        </div>
+
+        <!-- 内容包装器 -->
+        <div class="content-wrapper">
+            <!-- 仪表盘页面 -->
+            <div id="dashboard-page" class="page-content active">
+                <h2 class="mb-4">系统概览</h2>
+                
+                <!-- 关键指标卡片 -->
+                <div class="row mb-4">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card metric-card">
+                            <div class="card-body">
+                                <i class="fas fa-server fa-2x text-primary mb-3"></i>
+                                <div class="metric-value text-primary">76%</div>
+                                <div class="metric-label">集群利用率</div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-primary" style="width: 76%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card metric-card">
+                            <div class="card-body">
+                                <i class="fas fa-key fa-2x text-warning mb-3"></i>
+                                <div class="metric-value text-warning">12/20</div>
+                                <div class="metric-label">License 使用</div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-warning" style="width: 60%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card metric-card">
+                            <div class="card-body">
+                                <i class="fas fa-list fa-2x text-info mb-3"></i>
+                                <div class="metric-value text-info">8</div>
+                                <div class="metric-label">队列任务数</div>
+                                <small class="text-muted">平均等待时间: 2.3min</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card metric-card">
+                            <div class="card-body">
+                                <i class="fas fa-play-circle fa-2x text-success mb-3"></i>
+                                <div class="metric-value text-success">3</div>
+                                <div class="metric-label">运行中批次</div>
+                                <small class="text-muted">批次ID: B001, B003, B007</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 系统状态和趋势图表 -->
+                <div class="row">
+                    <div class="col-lg-8 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-chart-line me-2"></i>系统负载趋势
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="loadTrendChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-cogs me-2"></i>资源状态
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>
+                                            <span class="status-indicator status-running"></span>
+                                            私有云节点
+                                        </span>
+                                        <strong>2/3</strong>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>
+                                            <span class="status-indicator status-running"></span>
+                                            边缘计算节点
+                                        </span>
+                                        <strong>2/2</strong>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>
+                                            <span class="status-indicator status-idle"></span>
+                                            IoT监测设备
+                                        </span>
+                                        <strong>2/2</strong>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>
+                                            <span class="status-indicator status-error"></span>
+                                            故障设备
+                                        </span>
+                                        <strong>2</strong>
+                                    </div>
+                                </div>
+                                <canvas id="resourceDistributionChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最近活动和告警 -->
+                <div class="row">
+                    <div class="col-lg-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-history me-2"></i>最近活动
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="timeline">
+                                    <div class="timeline-item">
+                                        <span class="badge bg-success">完成</span>
+                                        <span class="ms-2">批次 B007 执行完成，耗时 12.3min</span>
+                                        <small class="text-muted d-block">2分钟前</small>
+                                    </div>
+                                    <div class="timeline-item mt-3">
+                                        <span class="badge bg-primary">启动</span>
+                                        <span class="ms-2">DRL策略训练开始，场景: 显示面板-高负载</span>
+                                        <small class="text-muted d-block">5分钟前</small>
+                                    </div>
+                                    <div class="timeline-item mt-3">
+                                        <span class="badge bg-warning">告警</span>
+                                        <span class="ms-2">边缘节点 Edge-03 CPU使用率超过85%</span>
+                                        <small class="text-muted d-block">8分钟前</small>
+                                    </div>
+                                    <div class="timeline-item mt-3">
+                                        <span class="badge bg-info">调度</span>
+                                        <span class="ms-2">使用FIFO策略调度任务组 TG-145</span>
+                                        <small class="text-muted d-block">12分钟前</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>系统告警
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="alert alert-warning d-flex align-items-center" role="alert">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <div>
+                                        <strong>Fluent License 使用率告警</strong><br>
+                                        当前 Fluent License 使用率 75%，接近阈值
+                                    </div>
+                                </div>
+                                <div class="alert alert-info d-flex align-items-center" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <div>
+                                        <strong>队列积压提醒</strong><br>
+                                        任务队列中有 8 个待处理任务
+                                    </div>
+                                </div>
+                                <div class="alert alert-danger d-flex align-items-center" role="alert">
+                                    <i class="fas fa-times-circle me-2"></i>
+                                    <div>
+                                        <strong>设备故障</strong><br>
+                                        IoT设备 IoT-27, IoT-33 离线超过10分钟
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 资源管理页面 -->
+            <div id="resources-page" class="page-content">
+                <h2 class="mb-4">资源管理</h2>
+                
+                <!-- 资源类型标签页 -->
+                <ul class="nav nav-tabs mb-4" id="resourceTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#resource-overview">
+                            <i class="fas fa-chart-pie me-2"></i>资源概览
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#compute-nodes">
+                            <i class="fas fa-server me-2"></i>计算节点
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#iot-devices">
+                            <i class="fas fa-microchip me-2"></i>IoT设备
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#licenses">
+                            <i class="fas fa-key me-2"></i>License管理
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#experts">
+                            <i class="fas fa-users me-2"></i>专家资源
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="tab-content">
+                    <!-- 资源概览标签页 -->
+                    <div class="tab-pane fade show active" id="resource-overview">
+                        <div class="row">
+                            <!-- 计算节点概览 -->
+                            <div class="col-lg-6 mb-4">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0"><i class="fas fa-server me-2"></i>计算节点概览</h5>
+                                        <small class="text-muted">总计: 11个节点</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <div class="metric-card bg-light rounded p-3 text-center">
+                                                    <div class="metric-value text-primary">1</div>
+                                                    <div class="metric-label">云节点</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="metric-card bg-light rounded p-3 text-center">
+                                                    <div class="metric-value text-success">10</div>
+                                                    <div class="metric-label">边缘节点</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <small class="text-muted">总CPU核心: 176核 | 总内存: 1408GB</small>
+                                        </div>
+                                        <div class="progress mt-2">
+                                            <div class="progress-bar bg-success" style="width: 60%"></div>
+                                        </div>
+                                        <small class="text-muted">平均利用率: 60%</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- IoT设备概览 -->
+                            <div class="col-lg-6 mb-4">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0"><i class="fas fa-microchip me-2"></i>IoT设备概览</h5>
+                                        <small class="text-muted">总计: 40个设备</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-4">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-info" style="font-size: 1.5rem;">10</div>
+                                                    <div class="metric-label small">阵列-ITO</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-warning" style="font-size: 1.5rem;">6</div>
+                                                    <div class="metric-label small">阵列-光刻</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-primary" style="font-size: 1.5rem;">8</div>
+                                                    <div class="metric-label small">阵列-PI</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row mt-2">
+                                            <div class="col-6">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-success" style="font-size: 1.5rem;">8</div>
+                                                    <div class="metric-label small">贴合-封装</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-6">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-secondary" style="font-size: 1.5rem;">8</div>
+                                                    <div class="metric-label small">模组-AOI</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <span class="badge bg-success me-1">40在线</span>
+                                            <span class="badge bg-secondary">0离线</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- License管理概览 -->
+                            <div class="col-lg-6 mb-4">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0"><i class="fas fa-key me-2"></i>License使用概览</h5>
+                                        <small class="text-muted">总计: 10种软件</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-4">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-primary" style="font-size: 1.5rem;">33</div>
+                                                    <div class="metric-label small">总License数</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-warning" style="font-size: 1.5rem;">12</div>
+                                                    <div class="metric-label small">使用中</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-success" style="font-size: 1.5rem;">21</div>
+                                                    <div class="metric-label small">空闲</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="progress mb-2">
+                                            <div class="progress-bar bg-warning" style="width: 36%"></div>
+                                        </div>
+                                        <small class="text-muted">整体使用率: 36%</small>
+                                        <div class="mt-2">
+                                            <small class="text-danger">⚠ 3个软件即将到期</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 专家资源概览 -->
+                            <div class="col-lg-6 mb-4">
+                                <div class="card">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <h5 class="mb-0"><i class="fas fa-users me-2"></i>专家资源概览</h5>
+                                        <small class="text-muted">总计: 10位专家</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-3">
+                                            <div class="col-4">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-success" style="font-size: 1.5rem;">5</div>
+                                                    <div class="metric-label small">Senior</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-primary" style="font-size: 1.5rem;">3</div>
+                                                    <div class="metric-label small">Intermediate</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="metric-card bg-light rounded p-2 text-center">
+                                                    <div class="metric-value text-secondary" style="font-size: 1.5rem;">2</div>
+                                                    <div class="metric-label small">Junior</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <span class="badge bg-success me-1">6 空闲</span>
+                                            </div>
+                                            <div class="col-6">
+                                                <span class="badge bg-warning">4 忙碌</span>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <small class="text-muted">涵盖CFD、FEM、热分析、电磁、光学、TCAD等领域</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 快速操作区域 -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>快速操作</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-lg-3 col-md-6 mb-2">
+                                                <button class="btn btn-outline-primary btn-sm w-100">
+                                                    <i class="fas fa-plus me-1"></i>添加计算节点
+                                                </button>
+                                            </div>
+                                            <div class="col-lg-3 col-md-6 mb-2">
+                                                <button class="btn btn-outline-success btn-sm w-100">
+                                                    <i class="fas fa-wifi me-1"></i>注册IoT设备
+                                                </button>
+                                            </div>
+                                            <div class="col-lg-3 col-md-6 mb-2">
+                                                <button class="btn btn-outline-warning btn-sm w-100">
+                                                    <i class="fas fa-key me-1"></i>导入License
+                                                </button>
+                                            </div>
+                                            <div class="col-lg-3 col-md-6 mb-2">
+                                                <button class="btn btn-outline-info btn-sm w-100">
+                                                    <i class="fas fa-user-plus me-1"></i>添加专家
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 计算节点标签页 -->
+                    <div class="tab-pane fade" id="compute-nodes">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">计算节点列表</h5>
+                                <button class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-2"></i>添加节点
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <!-- cloud节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    cloud (云节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 48核</div>
+                                                <div class="col-6">内存: 512.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 4.5GHz</div>
+                                                <div class="col-6">功耗: 0.45~5.625kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- edge1节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    edge1 (边缘节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 12核</div>
+                                                <div class="col-6">内存: 128.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 2.4GHz</div>
+                                                <div class="col-6">功耗: 0.06~0.75kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- edge2节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    edge2 (边缘节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 8核</div>
+                                                <div class="col-6">内存: 64.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 3.3GHz</div>
+                                                <div class="col-6">功耗: 0.055~0.6875kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- edge3节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    edge3 (边缘节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 12核</div>
+                                                <div class="col-6">内存: 128.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 2.4GHz</div>
+                                                <div class="col-6">功耗: 0.06~0.75kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- edge4节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    edge4 (边缘节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 12核</div>
+                                                <div class="col-6">内存: 128.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 3.7GHz</div>
+                                                <div class="col-6">功耗: 0.0925~1.156kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- edge5节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    edge5 (边缘节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 16核</div>
+                                                <div class="col-6">内存: 64.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 3.4GHz</div>
+                                                <div class="col-6">功耗: 0.113~1.417kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- edge6节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    edge6 (边缘节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 12核</div>
+                                                <div class="col-6">内存: 128.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 2.4GHz</div>
+                                                <div class="col-6">功耗: 0.06~0.75kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- edge7节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    edge7 (边缘节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 16核</div>
+                                                <div class="col-6">内存: 128.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 3.7GHz</div>
+                                                <div class="col-6">功耗: 0.123~1.542kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- edge8节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    edge8 (边缘节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 12核</div>
+                                                <div class="col-6">内存: 64.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 2.4GHz</div>
+                                                <div class="col-6">功耗: 0.04~0.5kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- edge9节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    edge9 (边缘节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 16核</div>
+                                                <div class="col-6">内存: 128.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 2.4GHz</div>
+                                                <div class="col-6">功耗: 0.08~1.0kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- edge10节点 -->
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="resource-item">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="mb-0">
+                                                    <span class="status-indicator status-running"></span>
+                                                    edge10 (边缘节点)
+                                                </h6>
+                                                <span class="badge bg-success">运行中</span>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">CPU: 12核</div>
+                                                <div class="col-6">内存: 64.0GB</div>
+                                            </div>
+                                            <div class="row text-muted small">
+                                                <div class="col-6">频率: 3.7GHz</div>
+                                                <div class="col-6">功耗: 0.0925~1.156kW</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- IoT设备标签页 -->
+                    <div class="tab-pane fade" id="iot-devices">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">IoT设备管理</h5>
+                                <button class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-2"></i>注册设备
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>设备ID</th>
+                                                <th>设备名称</th>
+                                                <th>车间位置</th>
+                                                <th>状态</th>
+                                                <th>候选边缘节点</th>
+                                                <th>传输功率分布</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>1</td>
+                                                <td>
+                                                    <i class="fas fa-microchip me-2"></i>Array-ITO-ITO-AOI-06
+                                                </td>
+                                                <td>阵列-ITO车间</td>
+                                                <td><span class="badge bg-success">在线</span></td>
+                                                <td>edge2,edge1,edge3</td>
+                                                <td>uniform[27.0,30.0]</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>2</td>
+                                                <td>
+                                                    <i class="fas fa-search me-2"></i>Array-ITO-ITO-Ellipsometer-02
+                                                </td>
+                                                <td>阵列-ITO车间</td>
+                                                <td><span class="badge bg-success">在线</span></td>
+                                                <td>edge1,edge3,edge2</td>
+                                                <td>uniform[27.0,30.0]</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>3</td>
+                                                <td>
+                                                    <i class="fas fa-cogs me-2"></i>Array-ITO-ITO-MFC-03
+                                                </td>
+                                                <td>阵列-ITO车间</td>
+                                                <td><span class="badge bg-success">在线</span></td>
+                                                <td>edge1,edge3,edge2</td>
+                                                <td>uniform[27.0,30.0]</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>4</td>
+                                                <td>
+                                                    <i class="fas fa-thermometer-half me-2"></i>Array-ITO-ITO-Pyrometer-05
+                                                </td>
+                                                <td>阵列-ITO车间</td>
+                                                <td><span class="badge bg-success">在线</span></td>
+                                                <td>edge1,edge3,edge2</td>
+                                                <td>uniform[27.0,30.0]</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>5</td>
+                                                <td>
+                                                    <i class="fas fa-gauge me-2"></i>Array-ITO-ITO-QCM-01
+                                                </td>
+                                                <td>阵列-ITO车间</td>
+                                                <td><span class="badge bg-success">在线</span></td>
+                                                <td>edge3,edge1,edge2</td>
+                                                <td>uniform[27.0,30.0]</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>6</td>
+                                                <td>
+                                                    <i class="fas fa-valve me-2"></i>Array-ITO-ITO-VacuumGauge-04
+                                                </td>
+                                                <td>阵列-ITO车间</td>
+                                                <td><span class="badge bg-success">在线</span></td>
+                                                <td>edge1,edge2,edge3</td>
+                                                <td>uniform[27.0,30.0]</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>7</td>
+                                                <td>
+                                                    <i class="fas fa-microscope me-2"></i>Array-Litho-Litho-CD-SEM-02
+                                                </td>
+                                                <td>阵列-光刻车间</td>
+                                                <td><span class="badge bg-success">在线</span></td>
+                                                <td>edge2,edge5</td>
+                                                <td>uniform[27.0,30.0]</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>8</td>
+                                                <td>
+                                                    <i class="fas fa-layer-group me-2"></i>Array-Litho-Litho-CoaterSensor-03
+                                                </td>
+                                                <td>阵列-光刻车间</td>
+                                                <td><span class="badge bg-success">在线</span></td>
+                                                <td>edge2,edge5</td>
+                                                <td>uniform[27.0,30.0]</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>9</td>
+                                                <td>
+                                                    <i class="fas fa-ruler me-2"></i>Array-Litho-Litho-StepperMetrology-01
+                                                </td>
+                                                <td>阵列-光刻车间</td>
+                                                <td><span class="badge bg-success">在线</span></td>
+                                                <td>edge5,edge2</td>
+                                                <td>uniform[27.0,30.0]</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>10</td>
+                                                <td>
+                                                    <i class="fas fa-temperature-high me-2"></i>Array-PI-PI-BakeTemp-02
+                                                </td>
+                                                <td>阵列-PI车间</td>
+                                                <td><span class="badge bg-success">在线</span></td>
+                                                <td>edge4,edge3</td>
+                                                <td>uniform[27.0,30.0]</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-cog"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- License管理标签页 -->
+                    <div class="tab-pane fade" id="licenses">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">License使用情况</h5>
+                                <button class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-2"></i>添加License
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-desktop fa-2x text-primary mb-3"></i>
+                                                <h6>Ansys Workbench</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-primary" style="width: 60%"></div>
+                                                </div>
+                                                <p class="mb-1"><strong>3/5</strong> 个License使用中</p>
+                                                <small class="text-muted">到期时间: 2024-12-31</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-atom fa-2x text-success mb-3"></i>
+                                                <h6>COMSOL Multiphysics</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-success" style="width: 33%"></div>
+                                                </div>
+                                                <p class="mb-1"><strong>1/3</strong> 个License使用中</p>
+                                                <small class="text-muted">到期时间: 2025-06-15</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-wind fa-2x text-warning mb-3"></i>
+                                                <h6>Fluent CFD</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-warning" style="width: 75%"></div>
+                                                </div>
+                                                <p class="mb-1"><strong>3/4</strong> 个License使用中</p>
+                                                <small class="text-muted">到期时间: 2024-11-30</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-microchip fa-2x text-info mb-3"></i>
+                                                <h6>Silvaco ATLAS TCAD</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-info" style="width: 0%"></div>
+                                                </div>
+                                                <p class="mb-1"><strong>0/3</strong> 个License使用中</p>
+                                                <small class="text-muted">到期时间: 2025-10-01</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-layer-group fa-2x text-secondary mb-3"></i>
+                                                <h6>Lumerical STACK</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-secondary" style="width: 33%"></div>
+                                                </div>
+                                                <p class="mb-1"><strong>2/6</strong> 个License使用中</p>
+                                                <small class="text-muted">到期时间: 2025-07-31</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-broadcast-tower fa-2x text-dark mb-3"></i>
+                                                <h6>CST Studio Suite</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-dark" style="width: 0%"></div>
+                                                </div>
+                                                <p class="mb-1"><strong>0/2</strong> 个License使用中</p>
+                                                <small class="text-muted">到期时间: 2025-03-01</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-cube fa-2x text-primary mb-3"></i>
+                                                <h6>Coventor SEMulator3D</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-primary" style="width: 50%"></div>
+                                                </div>
+                                                <p class="mb-1"><strong>1/2</strong> 个License使用中</p>
+                                                <small class="text-muted">到期时间: 2025-04-15</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-cogs fa-2x text-success mb-3"></i>
+                                                <h6>Sentaurus Process</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-success" style="width: 25%"></div>
+                                                </div>
+                                                <p class="mb-1"><strong>1/4</strong> 个License使用中</p>
+                                                <small class="text-muted">到期时间: 2024-12-20</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-memory fa-2x text-warning mb-3"></i>
+                                                <h6>ProPlus Memory Modeler</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-warning" style="width: 0%"></div>
+                                                </div>
+                                                <p class="mb-1"><strong>0/1</strong> 个License使用中</p>
+                                                <small class="text-muted">到期时间: 2025-01-10</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card bg-light">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-project-diagram fa-2x text-info mb-3"></i>
+                                                <h6>Simulia Abaqus</h6>
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar bg-info" style="width: 33%"></div>
+                                                </div>
+                                                <p class="mb-1"><strong>1/3</strong> 个License使用中</p>
+                                                <small class="text-muted">到期时间: 2025-05-05</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <h6 class="mt-4">License使用历史</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>软件</th>
+                                                <th>用户</th>
+                                                <th>开始时间</th>
+                                                <th>结束时间</th>
+                                                <th>使用时长</th>
+                                                <th>状态</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>Ansys Workbench</td>
+                                                <td>panel-batch-cfd-001-s2</td>
+                                                <td>15:20:15</td>
+                                                <td>15:32:48</td>
+                                                <td>12分33秒</td>
+                                                <td><span class="badge bg-success">已释放</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td>Fluent CFD</td>
+                                                <td>panel-batch-cfd-001-s3</td>
+                                                <td>15:18:30</td>
+                                                <td>--</td>
+                                                <td>运行中</td>
+                                                <td><span class="badge bg-primary">使用中</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td>COMSOL Multiphysics</td>
+                                                <td>thermal-analysis-batch-s4</td>
+                                                <td>14:55:20</td>
+                                                <td>15:18:15</td>
+                                                <td>22分55秒</td>
+                                                <td><span class="badge bg-success">已释放</span></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 专家资源标签页 -->
+                    <div class="tab-pane fade" id="experts">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">专家资源管理</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <div class="avatar-circle bg-primary text-white mb-3">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                <h6>Dr. Liu (刘博士)</h6>
+                                                <p class="text-muted small">CFD仿真专家</p>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业级别:</small>
+                                                    <span class="badge bg-success ms-1">Senior</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业领域:</small>
+                                                    <span class="badge bg-info ms-1">CFD流体仿真</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">当前状态:</small>
+                                                    <span class="badge bg-warning ms-1">忙碌</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <div class="avatar-circle bg-primary text-white mb-3">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                <h6>Ms. Zhao (赵工程师)</h6>
+                                                <p class="text-muted small">FEM结构专家</p>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业级别:</small>
+                                                    <span class="badge bg-primary ms-1">Intermediate</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业领域:</small>
+                                                    <span class="badge bg-info ms-1">FEM有限元分析</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">当前状态:</small>
+                                                    <span class="badge bg-success ms-1">空闲</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <div class="avatar-circle bg-secondary text-white mb-3">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                <h6>Mr. Sun (孙工程师)</h6>
+                                                <p class="text-muted small">热分析专家</p>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业级别:</small>
+                                                    <span class="badge bg-secondary ms-1">Junior</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业领域:</small>
+                                                    <span class="badge bg-info ms-1">Thermal热分析</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">当前状态:</small>
+                                                    <span class="badge bg-success ms-1">空闲</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <div class="avatar-circle bg-primary text-white mb-3">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                <h6>Dr. He (何博士)</h6>
+                                                <p class="text-muted small">电磁兼容专家</p>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业级别:</small>
+                                                    <span class="badge bg-success ms-1">Senior</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业领域:</small>
+                                                    <span class="badge bg-info ms-1">EMC电磁仿真</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">当前状态:</small>
+                                                    <span class="badge bg-warning ms-1">忙碌</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <div class="avatar-circle bg-primary text-white mb-3">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                <h6>Mr. Wang (王工程师)</h6>
+                                                <p class="text-muted small">薄膜光学专家</p>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业级别:</small>
+                                                    <span class="badge bg-primary ms-1">Intermediate</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业领域:</small>
+                                                    <span class="badge bg-info ms-1">薄膜色度光谱</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">当前状态:</small>
+                                                    <span class="badge bg-success ms-1">空闲</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <div class="avatar-circle bg-primary text-white mb-3">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                <h6>Ms. Li (李博士)</h6>
+                                                <p class="text-muted small">等离子体建模专家</p>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业级别:</small>
+                                                    <span class="badge bg-success ms-1">Senior</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业领域:</small>
+                                                    <span class="badge bg-info ms-1">Plasma溅射建模</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">当前状态:</small>
+                                                    <span class="badge bg-success ms-1">空闲</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <div class="avatar-circle bg-primary text-white mb-3">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                <h6>Mr. Zhang (张博士)</h6>
+                                                <p class="text-muted small">TCAD专家</p>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业级别:</small>
+                                                    <span class="badge bg-success ms-1">Senior</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业领域:</small>
+                                                    <span class="badge bg-info ms-1">TFT器件仿真</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">当前状态:</small>
+                                                    <span class="badge bg-warning ms-1">忙碌</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <div class="avatar-circle bg-primary text-white mb-3">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                <h6>Ms. Chen (陈工程师)</h6>
+                                                <p class="text-muted small">配向膜专家</p>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业级别:</small>
+                                                    <span class="badge bg-primary ms-1">Intermediate</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业领域:</small>
+                                                    <span class="badge bg-info ms-1">配向/摩擦建模</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">当前状态:</small>
+                                                    <span class="badge bg-success ms-1">空闲</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <div class="avatar-circle bg-primary text-white mb-3">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                <h6>Dr. Gao (高博士)</h6>
+                                                <p class="text-muted small">热-流-结构耦合专家</p>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业级别:</small>
+                                                    <span class="badge bg-success ms-1">Senior</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业领域:</small>
+                                                    <span class="badge bg-info ms-1">多物理场耦合</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">当前状态:</small>
+                                                    <span class="badge bg-success ms-1">空闲</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <div class="avatar-circle bg-secondary text-white mb-3">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                                <h6>Ms. Yang (杨工程师)</h6>
+                                                <p class="text-muted small">工艺仿真专家</p>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业级别:</small>
+                                                    <span class="badge bg-secondary ms-1">Junior</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">专业领域:</small>
+                                                    <span class="badge bg-info ms-1">显示制造工艺流程</span>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">当前状态:</small>
+                                                    <span class="badge bg-warning ms-1">忙碌</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 任务管理页面 -->
+            <div id="tasks-page" class="page-content">
+                <h2 class="mb-4">任务管理</h2>
+                
+                <!-- 任务管理标签页 -->
+                <ul class="nav nav-tabs mb-4" id="taskTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#historical-tasks">
+                            <i class="fas fa-history me-2"></i>历史任务
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#historical-batches">
+                            <i class="fas fa-archive me-2"></i>历史批次
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#target-tasks">
+                            <i class="fas fa-bullseye me-2"></i>目标任务
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#target-batches">
+                            <i class="fas fa-layer-group me-2"></i>目标批次
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="tab-content">
+                    <!-- 历史任务标签页 -->
+                    <div class="tab-pane fade show active" id="historical-tasks">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">历史任务</h5>
+                                <div>
+                                    <button class="btn btn-outline-primary btn-sm me-2">
+                                        <i class="fas fa-search me-2"></i>搜索
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-download me-2"></i>导出
+                                    </button>
+                                </div>
+                            </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>任务ID</th>
+                                                        <th>任务名称</th>
+                                                        <th>产品</th>
+                                                        <th>车间</th>
+                                                        <th>工艺窗口</th>
+                                                        <th>子任务数</th>
+                                                        <th>状态</th>
+                                                        <th>归档时间</th>
+                                                        <th>操作</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td><code>lcd-ito-window-202408-001</code></td>
+                                                        <td>LCD ITO溅射+退火工艺窗口优化</td>
+                                                        <td><span class="badge bg-primary">LCD</span></td>
+                                                        <td>阵列-ITO</td>
+                                                        <td>功率/压力/O₂:Ar/退火温度</td>
+                                                        <td>34</td>
+                                                        <td><span class="badge bg-success">完成</span></td>
+                                                        <td>2024-08-23 14:20:00</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="showDAG('lcd-ito-window-202408-001', 101)">
+                                                                <i class="fas fa-eye"></i> 查看
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><code>lcd-pi-bake-202408-002</code></td>
+                                                        <td>LCD PI配向膜涂布+烘烤曲线优化</td>
+                                                        <td><span class="badge bg-primary">LCD</span></td>
+                                                        <td>阵列-PI</td>
+                                                        <td>旋涂转速/黏度/烘烤温度-时间</td>
+                                                        <td>27</td>
+                                                        <td><span class="badge bg-success">完成</span></td>
+                                                        <td>2024-08-22 16:05:00</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="showDAG('lcd-pi-bake-202408-002', 102)">
+                                                                <i class="fas fa-eye"></i> 查看
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><code>lcd-litho-resist-202408-003</code></td>
+                                                        <td>LCD 光刻胶显影/曝光工艺窗口优化</td>
+                                                        <td><span class="badge bg-primary">LCD</span></td>
+                                                        <td>阵列-光刻</td>
+                                                        <td>曝光能量/显影时间/后烘温度</td>
+                                                        <td>41</td>
+                                                        <td><span class="badge bg-success">完成</span></td>
+                                                        <td>2024-08-21 18:30:00</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="showDAG('lcd-litho-resist-202408-003', 103)">
+                                                                <i class="fas fa-eye"></i> 查看
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><code>cell-align-pretilt-202408-004</code></td>
+                                                        <td>Cell 取向-预倾角窗口优化</td>
+                                                        <td><span class="badge bg-primary">LCD</span></td>
+                                                        <td>贴合-封装</td>
+                                                        <td>摩擦压力/速度/UV能量/配向治具间隙</td>
+                                                        <td>25</td>
+                                                        <td><span class="badge bg-success">完成</span></td>
+                                                        <td>2024-08-20 10:00:00</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="showDAG('cell-align-pretilt-202408-004', 104)">
+                                                                <i class="fas fa-eye"></i> 查看
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><code>seal-uv-cure-202408-005</code></td>
+                                                        <td>Cell 密封胶UV固化参数优化</td>
+                                                        <td><span class="badge bg-primary">LCD</span></td>
+                                                        <td>贴合-封装</td>
+                                                        <td>UV强度/固化时间/配方比</td>
+                                                        <td>22</td>
+                                                        <td><span class="badge bg-success">完成</span></td>
+                                                        <td>2024-08-19 15:40:00</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="showDAG('seal-uv-cure-202408-005', 105)">
+                                                                <i class="fas fa-eye"></i> 查看
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><code>module-aoi-tuning-202408-006</code></td>
+                                                        <td>模组AOI参数与缺陷阈值优化</td>
+                                                        <td><span class="badge bg-primary">LCD</span></td>
+                                                        <td>模组-AOI</td>
+                                                        <td>曝光/增益/阈值/光源角度</td>
+                                                        <td>24</td>
+                                                        <td><span class="badge bg-success">完成</span></td>
+                                                        <td>2024-08-18 09:20:00</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="showDAG('module-aoi-tuning-202408-006', 106)">
+                                                                <i class="fas fa-eye"></i> 查看
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><code>led-mocvd-gan-202408-007</code></td>
+                                                        <td>LED MOCVD GaN外延生长窗口优化</td>
+                                                        <td><span class="badge bg-warning">LED</span></td>
+                                                        <td>外延-MOCVD</td>
+                                                        <td>温度/III-V流量/腔压/载气比例</td>
+                                                        <td>38</td>
+                                                        <td><span class="badge bg-success">完成</span></td>
+                                                        <td>2024-08-17 11:00:00</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="showDAG('led-mocvd-gan-202408-007', 107)">
+                                                                <i class="fas fa-eye"></i> 查看
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><code>mini-led-reflow-202408-008</code></td>
+                                                        <td>MiniLED 回流焊曲线与空洞率优化</td>
+                                                        <td><span class="badge bg-warning">LED</span></td>
+                                                        <td>SMT-封装</td>
+                                                        <td>预热/回流峰值/保温时间/冷却速率</td>
+                                                        <td>32</td>
+                                                        <td><span class="badge bg-success">完成</span></td>
+                                                        <td>2024-08-16 17:25:00</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="showDAG('mini-led-reflow-202408-008', 108)">
+                                                                <i class="fas fa-eye"></i> 查看
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><code>led-phosphor-mix-202408-009</code></td>
+                                                        <td>LED 荧光粉配比与涂覆厚度优化</td>
+                                                        <td><span class="badge bg-warning">LED</span></td>
+                                                        <td>封装-荧光粉</td>
+                                                        <td>粒径/配比/涂层厚度/固化温度</td>
+                                                        <td>29</td>
+                                                        <td><span class="badge bg-success">完成</span></td>
+                                                        <td>2024-08-15 13:10:00</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="showDAG('led-phosphor-mix-202408-009', 109)">
+                                                                <i class="fas fa-eye"></i> 查看
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><code>led-wirebond-202408-010</code></td>
+                                                        <td>LED 金线键合参数窗口优化</td>
+                                                        <td><span class="badge bg-warning">LED</span></td>
+                                                        <td>封装-键合</td>
+                                                        <td>压力/超声功率/时间/楔形高度</td>
+                                                        <td>45</td>
+                                                        <td><span class="badge bg-success">完成</span></td>
+                                                        <td>2024-08-14 16:55:00</td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary" onclick="showDAG('led-wirebond-202408-010', 110)">
+                                                                <i class="fas fa-eye"></i> 查看
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 历史批次标签页 -->
+                    <div class="tab-pane fade" id="historical-batches">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">历史任务批次</h5>
+                                <div>
+                                    <button class="btn btn-outline-primary btn-sm me-2">
+                                        <i class="fas fa-search me-2"></i>搜索
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm">
+                                        <i class="fas fa-download me-2"></i>导出
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>批次编号</th>
+                                                <th>批次任务数</th>
+                                                <th>完成状态</th>
+                                                <th>归档时间</th>
+                                                <th>操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td><code>hist-batch-202408-A</code></td>
+                                                <td>10</td>
+                                                <td><span class="badge bg-success">全部完成</span></td>
+                                                <td>2024-08-24 18:00:00</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-eye"></i> 查看详情
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-secondary ms-1">
+                                                        <i class="fas fa-download"></i> 下载报告
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 目标任务标签页 -->
+                    <div class="tab-pane fade" id="target-tasks">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">目标任务池</h5>
+                                <div>
+                                    <button class="btn btn-primary btn-sm me-2">
+                                        <i class="fas fa-plus me-2"></i>创建任务
+                                    </button>
+                                    <button class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-upload me-2"></i>导入模板
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row align-items-stretch">
+                                    <div class="col-lg-6 mb-3 d-flex">
+                                        <div class="card border-primary h-100 w-100">
+                                            <div class="card-header bg-light">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">LCD ITO工艺窗口目标任务</h6>
+                                                    <span class="badge bg-primary">LCD</span>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <p class="text-muted small mb-2">
+                                                    <strong>模板:</strong> ITO溅射+退火
+                                                </p>
+                                                <p class="text-muted small mb-2">
+                                                    <strong>建议子任务数:</strong> 36个
+                                                </p>
+                                                <p class="text-muted small mb-3">
+                                                    <strong>任务ID:</strong> <code>target-lcd-ito-001</code>
+                                                </p>
+                                                <div class="d-flex gap-2">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="showDAG('target-lcd-ito-001', 201)">
+                                                        <i class="fas fa-eye me-1"></i>预览DAG
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success">
+                                                        <i class="fas fa-play me-1"></i>创建任务
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-6 mb-3 d-flex">
+                                        <div class="card border-primary h-100 w-100">
+                                            <div class="card-header bg-light">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">LCD PI烘烤曲线目标任务</h6>
+                                                    <span class="badge bg-primary">LCD</span>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <p class="text-muted small mb-2">
+                                                    <strong>模板:</strong> PI旋涂+烘烤
+                                                </p>
+                                                <p class="text-muted small mb-2">
+                                                    <strong>建议子任务数:</strong> 28个
+                                                </p>
+                                                <p class="text-muted small mb-3">
+                                                    <strong>任务ID:</strong> <code>target-lcd-pi-002</code>
+                                                </p>
+                                                <div class="d-flex gap-2">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="showDAG('target-lcd-pi-002', 202)">
+                                                        <i class="fas fa-eye me-1"></i>预览DAG
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success">
+                                                        <i class="fas fa-play me-1"></i>创建任务
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="card border-warning">
+                                            <div class="card-header bg-light">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">LED 外延MOCVD窗口目标任务</h6>
+                                                    <span class="badge bg-warning">LED</span>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <p class="text-muted small mb-2">
+                                                    <strong>模板:</strong> GaN/InGaN外延
+                                                </p>
+                                                <p class="text-muted small mb-2">
+                                                    <strong>建议子任务数:</strong> 40个
+                                                </p>
+                                                <p class="text-muted small mb-3">
+                                                    <strong>任务ID:</strong> <code>target-led-mocvd-003</code>
+                                                </p>
+                                                <div class="d-flex gap-2">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="showDAG('target-led-mocvd-003', 203)">
+                                                        <i class="fas fa-eye me-1"></i>预览DAG
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success">
+                                                        <i class="fas fa-play me-1"></i>创建任务
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-6 mb-3">
+                                        <div class="card border-warning">
+                                            <div class="card-header bg-light">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">MiniLED回流焊目标任务</h6>
+                                                    <span class="badge bg-warning">LED</span>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <p class="text-muted small mb-2">
+                                                    <strong>模板:</strong> 回流曲线+空洞率
+                                                </p>
+                                                <p class="text-muted small mb-2">
+                                                    <strong>建议子任务数:</strong> 30个
+                                                </p>
+                                                <p class="text-muted small mb-3">
+                                                    <strong>任务ID:</strong> <code>target-mini-led-reflow-004</code>
+                                                </p>
+                                                <div class="d-flex gap-2">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="showDAG('target-mini-led-reflow-004', 204)">
+                                                        <i class="fas fa-eye me-1"></i>预览DAG
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success">
+                                                        <i class="fas fa-play me-1"></i>创建任务
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-6 mb-3 d-flex">
+                                        <div class="card border-primary h-100 w-100">
+                                            <div class="card-header bg-light">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">模组AOI参数整定目标任务</h6>
+                                                    <span class="badge bg-primary">LCD</span>
+                                                </div>
+                                            </div>
+                                            <div class="card-body">
+                                                <p class="text-muted small mb-2">
+                                                    <strong>模板:</strong> 阈值/光源角度/增益
+                                                </p>
+                                                <p class="text-muted small mb-2">
+                                                    <strong>建议子任务数:</strong> 26个
+                                                </p>
+                                                <p class="text-muted small mb-3">
+                                                    <strong>任务ID:</strong> <code>target-module-aoi-005</code>
+                                                </p>
+                                                <div class="d-flex gap-2">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="showDAG('target-module-aoi-005', 205)">
+                                                        <i class="fas fa-eye me-1"></i>预览DAG
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success">
+                                                        <i class="fas fa-play me-1"></i>创建任务
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 目标批次标签页 -->
+                    <div class="tab-pane fade" id="target-batches">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">目标批次管理</h5>
+                                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createBatchModal">
+                                    <i class="fas fa-plus me-2"></i>创建批次
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card border-info">
+                                            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0">目标批次 001</h6>
+                                                <span class="badge bg-light text-info">计划中</span>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="small mb-2">
+                                                    <strong>批次ID:</strong> target-batch-001
+                                                </div>
+                                                <div class="small mb-2">
+                                                    <strong>包含任务:</strong>
+                                                </div>
+                                                <ul class="small mb-2">
+                                                    <li>LCD ITO工艺窗口 × 6</li>
+                                                    <li>模组AOI参数整定 × 4</li>
+                                                </ul>
+                                                <div class="small mb-2">
+                                                    <strong>总任务数:</strong> 10个
+                                                </div>
+                                                <div class="d-flex gap-2 mt-2">
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-edit me-1"></i>编辑
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success">
+                                                        <i class="fas fa-play me-1"></i>启动
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card border-warning">
+                                            <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0">目标批次 002</h6>
+                                                <span class="badge bg-light text-warning">计划中</span>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="small mb-2">
+                                                    <strong>批次ID:</strong> target-batch-002
+                                                </div>
+                                                <div class="small mb-2">
+                                                    <strong>包含任务:</strong>
+                                                </div>
+                                                <ul class="small mb-2">
+                                                    <li>LED 外延MOCVD窗口 × 5</li>
+                                                    <li>MiniLED回流焊 × 5</li>
+                                                </ul>
+                                                <div class="small mb-2">
+                                                    <strong>总任务数:</strong> 10个
+                                                </div>
+                                                <div class="d-flex gap-2 mt-2">
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-edit me-1"></i>编辑
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success">
+                                                        <i class="fas fa-play me-1"></i>启动
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-lg-4 mb-3">
+                                        <div class="card border-success">
+                                            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-0">目标批次 003</h6>
+                                                <span class="badge bg-light text-success">计划中</span>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="small mb-2">
+                                                    <strong>批次ID:</strong> target-batch-003
+                                                </div>
+                                                <div class="small mb-2">
+                                                    <strong>包含任务:</strong>
+                                                </div>
+                                                <ul class="small mb-2">
+                                                    <li>LCD PI烘烤曲线 × 8</li>
+                                                    <li>LCD ITO工艺窗口 × 2</li>
+                                                </ul>
+                                                <div class="small mb-2">
+                                                    <strong>总任务数:</strong> 10个
+                                                </div>
+                                                <div class="d-flex gap-2 mt-2">
+                                                    <button class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-edit me-1"></i>编辑
+                                                    </button>
+                                                    <button class="btn btn-sm btn-success">
+                                                        <i class="fas fa-play me-1"></i>启动
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- DAG查看模态框 -->
+            <div class="modal fade" id="dagModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="dagModalTitle">DAG结构图</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="dagContainer" style="min-height: 500px;">
+                                <!-- DAG图形将在这里显示 -->
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-primary">
+                                <i class="fas fa-download me-2"></i>导出PNG
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary">
+                                <i class="fas fa-expand-arrows-alt me-2"></i>全屏查看
+                            </button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 创建批次模态框 -->
+            <div class="modal fade" id="createBatchModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">创建新批次</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="createBatchForm">
+                                <div class="mb-3">
+                                    <label for="batchName" class="form-label">批次名称</label>
+                                    <input type="text" class="form-control" id="batchName" placeholder="请输入批次名称" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">选择任务类型和数量</label>
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="row" id="taskSelectionContainer">
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <input type="checkbox" class="form-check-input me-2" id="task_lcd_ito" data-task="LCD ITO工艺窗口目标任务">
+                                                        <label class="form-check-label flex-grow-1" for="task_lcd_ito">
+                                                            LCD ITO工艺窗口目标任务
+                                                        </label>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="me-2">×</span>
+                                                            <input type="number" class="form-control form-control-sm" style="width: 70px;" 
+                                                                   id="count_lcd_ito" min="1" max="50" value="1" disabled>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <input type="checkbox" class="form-check-input me-2" id="task_lcd_pi" data-task="LCD PI烘烤曲线目标任务">
+                                                        <label class="form-check-label flex-grow-1" for="task_lcd_pi">
+                                                            LCD PI烘烤曲线目标任务
+                                                        </label>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="me-2">×</span>
+                                                            <input type="number" class="form-control form-control-sm" style="width: 70px;" 
+                                                                   id="count_lcd_pi" min="1" max="50" value="1" disabled>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <input type="checkbox" class="form-check-input me-2" id="task_led_mocvd" data-task="LED 外延MOCVD窗口目标任务">
+                                                        <label class="form-check-label flex-grow-1" for="task_led_mocvd">
+                                                            LED 外延MOCVD窗口目标任务
+                                                        </label>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="me-2">×</span>
+                                                            <input type="number" class="form-control form-control-sm" style="width: 70px;" 
+                                                                   id="count_led_mocvd" min="1" max="50" value="1" disabled>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <input type="checkbox" class="form-check-input me-2" id="task_mini_led" data-task="MiniLED回流焊目标任务">
+                                                        <label class="form-check-label flex-grow-1" for="task_mini_led">
+                                                            MiniLED回流焊目标任务
+                                                        </label>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="me-2">×</span>
+                                                            <input type="number" class="form-control form-control-sm" style="width: 70px;" 
+                                                                   id="count_mini_led" min="1" max="50" value="1" disabled>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="col-md-6 mb-3">
+                                                    <div class="d-flex align-items-center">
+                                                        <input type="checkbox" class="form-check-input me-2" id="task_aoi" data-task="模组AOI参数整定目标任务">
+                                                        <label class="form-check-label flex-grow-1" for="task_aoi">
+                                                            模组AOI参数整定目标任务
+                                                        </label>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="me-2">×</span>
+                                                            <input type="number" class="form-control form-control-sm" style="width: 70px;" 
+                                                                   id="count_aoi" min="1" max="50" value="1" disabled>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mt-3 p-3 bg-light rounded">
+                                                <div class="d-flex justify-content-between">
+                                                    <span><strong>总任务数：</strong></span>
+                                                    <span id="totalTaskCount">0</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="batchDescription" class="form-label">批次描述（可选）</label>
+                                    <textarea class="form-control" id="batchDescription" rows="3" placeholder="请输入批次描述"></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                            <button type="button" class="btn btn-primary" id="createBatchBtn" disabled>创建批次</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 调度规则页面 -->
+            <div id="rules-page" class="page-content">
+                <h2 class="mb-4">调度规则配置</h2>
+                
+                <div class="row">
+                    <!-- 启发式策略 -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-brain me-2"></i>启发式调度策略
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label">选择启发式策略</label>
+                                    <select class="form-select" id="heuristicStrategy">
+                                        <option value="fifo" selected>FIFO (先来先服务)</option>
+                                        <option value="sjf">SJF (最短作业优先)</option>
+                                        <option value="srtf">SRTF (最短剩余时间优先)</option>
+                                        <option value="priority">Priority (优先级调度)</option>
+                                        <option value="round_robin">Round Robin (轮转调度)</option>
+                                        <option value="earliest_deadline">EDF (最早截止时间优先)</option>
+                                        <option value="critical_path">CPM (关键路径法)</option>
+                                        <option value="resource_aware">Resource-Aware (资源感知)</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">策略参数配置</label>
+                                    <div class="border rounded p-3">
+                                        <div class="row">
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small">时间片长度 (ms)</label>
+                                                <input type="number" class="form-control form-control-sm" value="100" min="10" max="1000">
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small">优先级权重</label>
+                                                <input type="range" class="form-range" min="0.1" max="2.0" step="0.1" value="1.0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>当前策略：FIFO</strong><br>
+                                    <small>按任务到达顺序进行调度，适用于批处理场景。平均等待时间较长，但实现简单。</small>
+                                </div>
+                                
+                                <h6 class="mt-4">策略性能预估</h6>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="text-center">
+                                            <div class="h4 text-primary">12.3min</div>
+                                            <small class="text-muted">预计Makespan</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="text-center">
+                                            <div class="h4 text-success">78%</div>
+                                            <small class="text-muted">资源利用率</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- DRL策略配置 -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-robot me-2"></i>DRL调度策略
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enableDRL" checked>
+                                    <label class="form-check-label" for="enableDRL">
+                                        <strong>启用深度强化学习调度</strong>
+                                    </label>
+                                </div>
+                                
+                                <hr>
+                                
+                                <h6>DRL模块配置</h6>
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="crossAttention" checked>
+                                    <label class="form-check-label" for="crossAttention">
+                                        <strong>特征交叉注意机制</strong><br>
+                                        <small class="text-muted">增强任务间依赖关系的学习能力</small>
+                                    </label>
+                                </div>
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="generativePolicy" checked>
+                                    <label class="form-check-label" for="generativePolicy">
+                                        <strong>生成式策略网络</strong><br>
+                                        <small class="text-muted">动态生成调度策略，适应复杂场景</small>
+                                    </label>
+                                </div>
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="metaTraining">
+                                    <label class="form-check-label" for="metaTraining">
+                                        <strong>元训练机制</strong><br>
+                                        <small class="text-muted">快速适应新的调度场景</small>
+                                    </label>
+                                </div>
+                                
+                                <hr>
+                                
+                                <h6>训练参数</h6>
+                                <div class="row">
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label small">学习率</label>
+                                        <select class="form-select form-select-sm">
+                                            <option>0.001</option>
+                                            <option selected>0.01</option>
+                                            <option>0.1</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label small">折扣因子</label>
+                                        <input type="number" class="form-control form-control-sm" value="0.95" min="0.1" max="1.0" step="0.05">
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-success mt-3">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    <strong>模型状态：已训练</strong><br>
+                                    <small>在1000个场景上完成训练，准确率87.3%</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 策略对比 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>策略性能对比
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>策略</th>
+                                        <th>平均Makespan</th>
+                                        <th>资源利用率</th>
+                                        <th>任务成功率</th>
+                                        <th>平均等待时间</th>
+                                        <th>适用场景</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="table-success">
+                                        <td><strong>DRL (全开)</strong></td>
+                                        <td><span class="badge bg-success">8.7min</span></td>
+                                        <td>89.2%</td>
+                                        <td>96.8%</td>
+                                        <td>1.3min</td>
+                                        <td>复杂动态场景</td>
+                                        <td><span class="badge bg-success">推荐</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>FIFO</td>
+                                        <td>12.3min</td>
+                                        <td>76.4%</td>
+                                        <td>94.2%</td>
+                                        <td>3.8min</td>
+                                        <td>简单批处理</td>
+                                        <td><span class="badge bg-primary">当前</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>SJF</td>
+                                        <td>10.1min</td>
+                                        <td>82.1%</td>
+                                        <td>95.4%</td>
+                                        <td>2.1min</td>
+                                        <td>已知执行时间</td>
+                                        <td><span class="badge bg-secondary">可选</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Priority</td>
+                                        <td>11.5min</td>
+                                        <td>79.8%</td>
+                                        <td>93.7%</td>
+                                        <td>2.9min</td>
+                                        <td>有优先级要求</td>
+                                        <td><span class="badge bg-secondary">可选</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 仿真运行页面 -->
+            <div id="simulation-page" class="page-content">
+                <h2 class="mb-4">仿真运行状态</h2>
+                
+                <!-- 运行控制面板 -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-play-circle me-2"></i>仿真控制
+                        </h5>
+                        <div>
+                            <button class="btn btn-success me-2">
+                                <i class="fas fa-play me-2"></i>启动仿真
+                            </button>
+                            <button class="btn btn-warning me-2">
+                                <i class="fas fa-pause me-2"></i>暂停
+                            </button>
+                            <button class="btn btn-danger me-2">
+                                <i class="fas fa-stop me-2"></i>停止
+                            </button>
+                            <button class="btn btn-info">
+                                <i class="fas fa-download me-2"></i>导出日志
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <div class="h4 text-success">运行中</div>
+                                    <small class="text-muted">仿真状态</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <div class="h4 text-primary">00:15:32</div>
+                                    <small class="text-muted">运行时间</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <div class="h4 text-info">批次 B001</div>
+                                    <small class="text-muted">当前场景</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <div class="h4 text-warning">DRL+FIFO</div>
+                                    <small class="text-muted">调度策略</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- 任务队列状态 -->
+                    <div class="col-lg-4 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-list me-2"></i>任务队列
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <h6>等待队列 (8个任务)</h6>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span><code>T-145</code> 显示面板装配</span>
+                                        <span class="badge bg-success">高</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-secondary" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span><code>T-162</code> 质量检测流程</span>
+                                        <span class="badge bg-warning">中</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-secondary" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                
+                                <h6 class="mt-4">运行中 (5个任务)</h6>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span><code>T-098</code> 仿真建模</span>
+                                        <span class="badge bg-primary">运行</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-primary progress-bar-animated" style="width: 65%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span><code>T-112</code> 数据分析</span>
+                                        <span class="badge bg-primary">运行</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-primary progress-bar-animated" style="width: 32%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Gantt图 -->
+                    <div class="col-lg-8 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-chart-gantt me-2"></i>任务调度甘特图
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="gantt-container">
+                                    <canvas id="ganttChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- 事件流 -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-stream me-2"></i>实时事件流
+                                </h5>
+                            </div>
+                            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                                <div class="timeline">
+                                    <div class="timeline-item">
+                                        <span class="badge bg-primary">15:35:42</span>
+                                        <span class="ms-2">任务 T-098 开始执行 (节点: Cloud-01)</span>
+                                    </div>
+                                    <div class="timeline-item mt-2">
+                                        <span class="badge bg-success">15:35:15</span>
+                                        <span class="ms-2">任务 T-087 执行完成 (耗时: 8.2min)</span>
+                                    </div>
+                                    <div class="timeline-item mt-2">
+                                        <span class="badge bg-warning">15:34:58</span>
+                                        <span class="ms-2">License SimSoft Pro 被任务 T-112 申请</span>
+                                    </div>
+                                    <div class="timeline-item mt-2">
+                                        <span class="badge bg-info">15:34:30</span>
+                                        <span class="ms-2">DRL策略建议: 任务 T-145 优先级提升</span>
+                                    </div>
+                                    <div class="timeline-item mt-2">
+                                        <span class="badge bg-danger">15:33:45</span>
+                                        <span class="ms-2">节点 Edge-03 负载过高 (CPU: 91%)</span>
+                                    </div>
+                                    <div class="timeline-item mt-2">
+                                        <span class="badge bg-secondary">15:33:12</span>
+                                        <span class="ms-2">任务 T-162 进入等待队列</span>
+                                    </div>
+                                    <div class="timeline-item mt-2">
+                                        <span class="badge bg-primary">15:32:58</span>
+                                        <span class="ms-2">子任务 T-098-ST03 开始数据传输</span>
+                                    </div>
+                                    <div class="timeline-item mt-2">
+                                        <span class="badge bg-success">15:32:20</span>
+                                        <span class="ms-2">IoT设备 IoT-001 数据采集完成</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 资源利用率监控 -->
+                    <div class="col-lg-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-tachometer-alt me-2"></i>资源利用率监控
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <h6>计算资源</h6>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Cloud-01 CPU</span>
+                                        <span>89%</span>
+                                    </div>
+                                    <div class="progress mb-1">
+                                        <div class="progress-bar bg-danger" style="width: 89%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Edge-03 CPU</span>
+                                        <span>76%</span>
+                                    </div>
+                                    <div class="progress mb-1">
+                                        <div class="progress-bar bg-warning" style="width: 76%"></div>
+                                    </div>
+                                </div>
+                                
+                                <h6 class="mt-4">License使用</h6>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>SimSoft Pro</span>
+                                        <span>16/20</span>
+                                    </div>
+                                    <div class="progress mb-1">
+                                        <div class="progress-bar bg-primary" style="width: 80%"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <span>ModelX Engine</span>
+                                        <span>7/10</span>
+                                    </div>
+                                    <div class="progress mb-1">
+                                        <div class="progress-bar bg-info" style="width: 70%"></div>
+                                    </div>
+                                </div>
+                                
+                                <h6 class="mt-4">网络传输</h6>
+                                <canvas id="networkChart" height="100"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 结果统计页面 -->
+            <div id="results-page" class="page-content">
+                <h2 class="mb-4">仿真结果统计</h2>
+                
+                <!-- 关键指标概览 -->
+                <div class="row mb-4">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-clock fa-2x text-primary mb-3"></i>
+                                <h4 class="text-primary">8.7min</h4>
+                                <h6>最大完工时间 (Makespan)</h6>
+                                <small class="text-success">↓ 29% vs FIFO</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-chart-line fa-2x text-success mb-3"></i>
+                                <h4 class="text-success">89.2%</h4>
+                                <h6>平均资源利用率</h6>
+                                <small class="text-success">↑ 12% vs FIFO</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-check-circle fa-2x text-info mb-3"></i>
+                                <h4 class="text-info">96.8%</h4>
+                                <h6>任务成功率</h6>
+                                <small class="text-success">↑ 2.6% vs FIFO</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <i class="fas fa-hourglass-half fa-2x text-warning mb-3"></i>
+                                <h4 class="text-warning">1.3min</h4>
+                                <h6>平均等待时间</h6>
+                                <small class="text-success">↓ 66% vs FIFO</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 性能对比图表 -->
+                <div class="row mb-4">
+                    <div class="col-lg-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-chart-bar me-2"></i>策略性能对比
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="performanceComparisonChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-line-chart me-2"></i>Makespan收敛曲线
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="convergenceChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 详细分析 -->
+                <div class="row mb-4">
+                    <div class="col-lg-8 mb-4">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-table me-2"></i>详细实验结果
+                                </h5>
+                                <div>
+                                    <button class="btn btn-primary btn-sm me-2">
+                                        <i class="fas fa-download me-2"></i>导出CSV
+                                    </button>
+                                    <button class="btn btn-success btn-sm">
+                                        <i class="fas fa-image me-2"></i>导出PNG
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>批次ID</th>
+                                                <th>场景</th>
+                                                <th>策略</th>
+                                                <th>Makespan</th>
+                                                <th>资源利用率</th>
+                                                <th>成功率</th>
+                                                <th>等待时间</th>
+                                                <th>事件次数</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr class="table-success">
+                                                <td><strong>B001</strong></td>
+                                                <td>显示面板-高负载</td>
+                                                <td><span class="badge bg-primary">DRL (全开)</span></td>
+                                                <td><strong>8.7min</strong></td>
+                                                <td>89.2%</td>
+                                                <td>96.8%</td>
+                                                <td>1.3min</td>
+                                                <td>5</td>
+                                            </tr>
+                                            <tr>
+                                                <td>B002</td>
+                                                <td>显示面板-高负载</td>
+                                                <td>FIFO</td>
+                                                <td>12.3min</td>
+                                                <td>76.4%</td>
+                                                <td>94.2%</td>
+                                                <td>3.8min</td>
+                                                <td>3</td>
+                                            </tr>
+                                            <tr>
+                                                <td>B003</td>
+                                                <td>质量检测-标准流程</td>
+                                                <td><span class="badge bg-primary">DRL (全开)</span></td>
+                                                <td>6.2min</td>
+                                                <td>91.5%</td>
+                                                <td>98.1%</td>
+                                                <td>0.9min</td>
+                                                <td>2</td>
+                                            </tr>
+                                            <tr>
+                                                <td>B004</td>
+                                                <td>质量检测-标准流程</td>
+                                                <td>SJF</td>
+                                                <td>8.9min</td>
+                                                <td>83.2%</td>
+                                                <td>95.7%</td>
+                                                <td>2.1min</td>
+                                                <td>4</td>
+                                            </tr>
+                                            <tr>
+                                                <td>B005</td>
+                                                <td>能耗优化-综合测试</td>
+                                                <td><span class="badge bg-warning">DRL (部分)</span></td>
+                                                <td>10.1min</td>
+                                                <td>87.3%</td>
+                                                <td>95.4%</td>
+                                                <td>1.8min</td>
+                                                <td>7</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-lg-4 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-pie-chart me-2"></i>事件影响分析
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="eventImpactChart" height="300"></canvas>
+                                
+                                <hr>
+                                
+                                <h6>事件统计</h6>
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>节点宕机</span>
+                                        <span class="badge bg-danger">8次</span>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>任务插入</span>
+                                        <span class="badge bg-info">12次</span>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>子任务重执行</span>
+                                        <span class="badge bg-warning">5次</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- DRL模块贡献分析 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-brain me-2"></i>DRL模块贡献度分析
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <canvas id="drlContributionChart" height="200"></canvas>
+                            </div>
+                            <div class="col-lg-4">
+                                <h6>模块效果评估</h6>
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>特征交叉注意机制</span>
+                                        <span class="badge bg-success">+15%</span>
+                                    </div>
+                                    <small class="text-muted">提升任务依赖关系识别准确率</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>生成式策略网络</span>
+                                        <span class="badge bg-primary">+22%</span>
+                                    </div>
+                                    <small class="text-muted">动态适应复杂调度场景</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>元训练机制</span>
+                                        <span class="badge bg-warning">+8%</span>
+                                    </div>
+                                    <small class="text-muted">快速适应新场景，减少训练时间</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 结果分析页面 -->
+        <div id="results-page" class="page-content">
+            <h2 class="mb-4">结果分析</h2>
+            
+            <div class="row">
+                <!-- 性能对比图表 -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-bar me-2"></i>策略性能对比
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 300px;">
+                                <canvas id="performanceComparisonChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DRL收敛性分析 -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-line me-2"></i>DRL收敛性分析
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 300px;">
+                                <canvas id="convergenceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DRL模块贡献度 -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-radar-chart me-2"></i>DRL模块贡献度
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 350px;">
+                                <canvas id="drlContributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 性能提升统计 -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-trophy me-2"></i>性能提升统计
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>特征交叉注意机制</span>
+                                    <span class="badge bg-success">+15%</span>
+                                </div>
+                                <small class="text-muted">提升任务依赖关系识别准确率</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>生成式策略网络</span>
+                                    <span class="badge bg-primary">+22%</span>
+                                </div>
+                                <small class="text-muted">动态适应复杂调度场景</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>元训练机制</span>
+                                    <span class="badge bg-warning">+8%</span>
+                                </div>
+                                <small class="text-muted">快速适应新场景，减少训练时间</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // 页面切换功能
+        function showPage(pageId, clickedElement) {
+            // 隐藏所有页面
+            const pages = document.querySelectorAll('.page-content');
+            pages.forEach(page => {
+                page.style.display = 'none';
+            });
+
+            // 显示目标页面
+            const targetPage = document.getElementById(pageId);
+            if (targetPage) {
+                targetPage.style.display = 'block';
+            }
+
+            // 更新导航状态
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // 如果有点击的元素，则添加active类
+            if (clickedElement) {
+                clickedElement.classList.add('active');
+            } else if (typeof event !== 'undefined' && event.target) {
+                event.target.classList.add('active');
+            }
+        }
+        
+        // 页面加载后显示默认页面
+        document.addEventListener('DOMContentLoaded', function() {
+            showPage('dashboard-page');
+            // 设置默认的active导航链接
+            const dashboardLink = document.querySelector('a[onclick*="dashboard-page"]');
+            if (dashboardLink) {
+                dashboardLink.classList.add('active');
+            }
+        });
+
+        // 所有初始化函数已移至对应的模块文件
+    </script>
+    
+    <!-- Bootstrap JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- JavaScript模块 -->
+    <script src="js/resource-management.js"></script>
+    <script src="js/scheduling-management.js"></script>
+    <script src="js/task-management.js"></script>
+</body>
+</html>

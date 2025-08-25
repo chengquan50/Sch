@@ -1,0 +1,200 @@
+{
+  "historical_tasks": [
+    {
+      "id": "lcd-ito-window-202408-001",
+      "name": "LCD ITO溅射+退火工艺窗口优化",
+      "product": "LCD",
+      "workshop": "阵列-ITO",
+      "process_window": "功率/压力/O₂:Ar/退火温度",
+      "objective": "T(550nm)≥90%, Rs≤15Ω/□, 均匀性≤±3%",
+      "subtask_count": 34,
+      "archived_at": "2024-08-23 14:20:00",
+      "status": "completed",
+      "dag_seed": 101
+    },
+    {
+      "id": "lcd-pi-bake-202408-002",
+      "name": "LCD PI配向膜涂布+烘烤曲线优化",
+      "product": "LCD",
+      "workshop": "阵列-PI",
+      "process_window": "旋涂转速/黏度/烘烤温度-时间",
+      "objective": "预倾角目标±0.2°, 摩擦系数稳定",
+      "subtask_count": 27,
+      "archived_at": "2024-08-22 16:05:00",
+      "status": "completed",
+      "dag_seed": 102
+    },
+    {
+      "id": "lcd-litho-resist-202408-003",
+      "name": "LCD 光刻胶显影/曝光工艺窗口优化",
+      "product": "LCD",
+      "workshop": "阵列-光刻",
+      "process_window": "曝光能量/显影时间/后烘温度",
+      "objective": "CD偏差≤±30nm, LER最小化",
+      "subtask_count": 41,
+      "archived_at": "2024-08-21 18:30:00",
+      "status": "completed",
+      "dag_seed": 103
+    },
+    {
+      "id": "cell-align-pretilt-202408-004",
+      "name": "Cell 取向-预倾角窗口优化",
+      "product": "LCD",
+      "workshop": "贴合-封装",
+      "process_window": "摩擦压力/速度/UV能量/配向治具间隙",
+      "objective": "预倾角分布≤±0.3°, Mura降低",
+      "subtask_count": 25,
+      "archived_at": "2024-08-20 10:00:00",
+      "status": "completed",
+      "dag_seed": 104
+    },
+    {
+      "id": "seal-uv-cure-202408-005",
+      "name": "Cell 密封胶UV固化参数优化",
+      "product": "LCD",
+      "workshop": "贴合-封装",
+      "process_window": "UV强度/固化时间/配方比",
+      "objective": "泄漏率≤1e-9 mbar·L/s",
+      "subtask_count": 22,
+      "archived_at": "2024-08-19 15:40:00",
+      "status": "completed",
+      "dag_seed": 105
+    },
+    {
+      "id": "module-aoi-tuning-202408-006",
+      "name": "模组AOI参数与缺陷阈值优化",
+      "product": "LCD",
+      "workshop": "模组-AOI",
+      "process_window": "曝光/增益/阈值/光源角度",
+      "objective": "Recall≥99.5%, FP≤0.3%",
+      "subtask_count": 24,
+      "archived_at": "2024-08-18 09:20:00",
+      "status": "completed",
+      "dag_seed": 106
+    },
+    {
+      "id": "led-mocvd-gan-202408-007",
+      "name": "LED MOCVD GaN外延生长窗口优化",
+      "product": "LED",
+      "workshop": "外延-MOCVD",
+      "process_window": "温度/III-V流量/腔压/载气比例",
+      "objective": "PL强度↑, 缺陷密度↓",
+      "subtask_count": 38,
+      "archived_at": "2024-08-17 11:00:00",
+      "status": "completed",
+      "dag_seed": 107
+    },
+    {
+      "id": "mini-led-reflow-202408-008",
+      "name": "MiniLED 回流焊曲线与空洞率优化",
+      "product": "LED",
+      "workshop": "SMT-封装",
+      "process_window": "预热/回流峰值/保温时间/冷却速率",
+      "objective": "空洞率≤5%, 良率↑",
+      "subtask_count": 32,
+      "archived_at": "2024-08-16 17:25:00",
+      "status": "completed",
+      "dag_seed": 108
+    },
+    {
+      "id": "led-phosphor-mix-202408-009",
+      "name": "LED 荧光粉配比与涂覆厚度优化",
+      "product": "LED",
+      "workshop": "封装-荧光粉",
+      "process_window": "粒径/配比/涂层厚度/固化温度",
+      "objective": "CCT容差≤2SDCM, Lumen维持↑",
+      "subtask_count": 29,
+      "archived_at": "2024-08-15 13:10:00",
+      "status": "completed",
+      "dag_seed": 109
+    },
+    {
+      "id": "led-wirebond-202408-010",
+      "name": "LED 金线键合参数窗口优化",
+      "product": "LED",
+      "workshop": "封装-键合",
+      "process_window": "压力/超声功率/时间/楔形高度",
+      "objective": "拉力>最低规范, 失效率<50ppm",
+      "subtask_count": 45,
+      "archived_at": "2024-08-14 16:55:00",
+      "status": "completed",
+      "dag_seed": 110
+    }
+  ],
+  "historical_batches": [
+    {
+      "batch_id": "hist-batch-202408-A",
+      "task_count": 10,
+      "status": "completed",
+      "archived_at": "2024-08-24 18:00:00"
+    }
+  ],
+  "target_tasks_pool": [
+    {
+      "id": "target-lcd-ito-001",
+      "name": "LCD ITO工艺窗口目标任务",
+      "product": "LCD",
+      "template": "ITO溅射+退火",
+      "suggested_subtask_count": 36,
+      "dag_seed": 201
+    },
+    {
+      "id": "target-lcd-pi-002",
+      "name": "LCD PI烘烤曲线目标任务",
+      "product": "LCD",
+      "template": "PI旋涂+烘烤",
+      "suggested_subtask_count": 28,
+      "dag_seed": 202
+    },
+    {
+      "id": "target-led-mocvd-003",
+      "name": "LED 外延MOCVD窗口目标任务",
+      "product": "LED",
+      "template": "GaN/InGaN外延",
+      "suggested_subtask_count": 40,
+      "dag_seed": 203
+    },
+    {
+      "id": "target-mini-led-reflow-004",
+      "name": "MiniLED回流焊目标任务",
+      "product": "LED",
+      "template": "回流曲线+空洞率",
+      "suggested_subtask_count": 30,
+      "dag_seed": 204
+    },
+    {
+      "id": "target-module-aoi-005",
+      "name": "模组AOI参数整定目标任务",
+      "product": "LCD",
+      "template": "阈值/光源角度/增益",
+      "suggested_subtask_count": 26,
+      "dag_seed": 205
+    }
+  ],
+  "target_batches": [
+    {
+      "batch_id": "target-batch-001",
+      "status": "planned",
+      "items": [
+        { "task_id": "target-lcd-ito-001", "quantity": 6 },
+        { "task_id": "target-module-aoi-005", "quantity": 4 }
+      ]
+    },
+    {
+      "batch_id": "target-batch-002",
+      "status": "planned",
+      "items": [
+        { "task_id": "target-led-mocvd-003", "quantity": 5 },
+        { "task_id": "target-mini-led-reflow-004", "quantity": 5 }
+      ]
+    },
+    {
+      "batch_id": "target-batch-003",
+      "status": "planned",
+      "items": [
+        { "task_id": "target-lcd-pi-002", "quantity": 8 },
+        { "task_id": "target-lcd-ito-001", "quantity": 2 }
+      ]
+    }
+  ]
+}
