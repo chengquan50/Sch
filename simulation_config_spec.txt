@@ -1,0 +1,115 @@
+# 仿真配置（Simulation Config）— 最小可用版
+
+## 一、页面目标
+在启动仿真前，确定：
+1) 选择目标批次（从目标批次里拉取要参与的任务）；  
+2) 选择调度策略（从“调度规则”已注册规则中单选一条）；  
+3) 配置动态事件（仅两类：资源不可用、任务动态），均按分布描述并用“三西格玛(3σ)截断”；  
+4) 填写基本信息（资源与平台概况、随机种子）。
+
+---
+
+## 二、信息结构（表单字段）
+
+### 1) 基本信息
+- name (必填)：配置名称  
+- seed (可选)：随机种子（空则随机）  
+- resourceSummary（只读/自动带入，可覆盖）：  
+  - computeNodes: 节点数、总核数、总内存、边缘/云比例  
+  - licenses: 主要软件可用/总数  
+  - experts: 专家可用人数  
+- platformInfo（只读/自动带入，可覆盖）：  
+  - simEngine: 仿真后端版本  
+  - frontBuild: 前端版本  
+  - host: CPU/内存/OS 简要摘要
+
+### 2) 任务选择
+- targetBatchId (必选)：从目标批次列表中单选  
+- 只读预览：任务数/任务类别分布/估算子任务总量
+
+### 3) 策略选择
+- policy.ruleId (必选)：从“调度规则”里单选  
+- 只读展示参数：  
+  - DRL → 神经元规模（如 [64,256,128,12]）  
+  - Heuristic → 关键参数（如 M=8）
+
+### 4) 动态事件（分布化，3σ 截断，可选3 4 2sigama）
+#### 4.1 资源不可用（节点下线）
+- type: "node_down"  
+- nodeScope: "any_edge" | "any_cloud" | ["edge1","edge2"]  
+- occurrenceRate: 正态分布 {mean,std}，单位/1000s，整数≥0  
+- durationSec: 下线时间，正态 {mean,std}，最小 1s  
+- cooldownSec: 最小间隔（常量或正态）
+
+#### 4.2 任务动态
+- windowSec: 发生窗口，正态 {mean,std}，截断到 [0,仿真时长]  
+- 子类：
+  - task_insert：occurrenceRate (/1000s, 正态)，sizeHint (≥1, 正态取整)  
+  - subtask_insert：occurrenceRate (/1000s)，fanout (≥1)  
+  - subtask_retry：probPerExec (正态，clip 到 [0,1])
+
+---
+
+## 三、数据模型（Mock 示例）
+
+{
+  "id": "cfg-20250824-001",
+  "name": "LCD-ITO-窗口-DRL-交叉注意",
+  "seed": 12345,
+  "resourceSummary": {
+    "computeNodes": { "count": 11, "totalCores": 196, "totalMemGB": 896, "edgeShare": 0.82 },
+    "licenses": { "COMSOL": "1/3", "Lumerical STACK": "2/6", "ATLAS TCAD": "0/3" },
+    "experts": { "available": 6, "total": 10 }
+  },
+  "platformInfo": {
+    "simEngine": "Py/SQLModel v0.3",
+    "frontBuild": "web-v0.12",
+    "host": "x86_64 32C/128G Linux"
+  },
+  "targetBatchId": "target-batch-002",
+  "policy": { "ruleId": "drl-ca", "displayParams": "[64,256,128,12]" },
+  "events": [
+    {
+      "type": "node_down",
+      "nodeScope": ["edge1","edge2","edge3"],
+      "occurrenceRate": { "dist": "normal", "mean": 1.8, "std": 0.6, "per": 1000 },
+      "durationSec":   { "dist": "normal", "mean": 120, "std": 40 },
+      "cooldownSec":   60
+    },
+    {
+      "type": "task_dynamic",
+      "windowSec": { "dist": "normal", "mean": 900, "std": 300 },
+      "sub": [
+        { "subType": "task_insert",
+          "occurrenceRate": { "dist": "normal", "mean": 0.8, "std": 0.3, "per": 1000 },
+          "sizeHint":      { "dist": "normal", "mean": 2.0, "std": 0.7 }
+        },
+        { "subType": "subtask_insert",
+          "occurrenceRate": { "dist": "normal", "mean": 1.2, "std": 0.4, "per": 1000 },
+          "fanout":        { "dist": "normal", "mean": 3.0, "std": 1.0 }
+        },
+        { "subType": "subtask_retry",
+          "probPerExec":   { "dist": "normal", "mean": 0.05, "std": 0.02 }
+        }
+      ]
+    }
+  ]
+}
+
+---
+
+## 四、校验规范
+- 所有正态分布字段：采样后 clip 到 [μ−3σ, μ+3σ]  
+- 时间/次数：≥0；duration ≥1；概率 clip 到 [0,1]；sizeHint/fanout ≥1  
+- nodeScope 默认 any_edge  
+- policy.ruleId、targetBatchId 必填  
+- 保存返回 configId；可直接 POST /sim/runs {configId} 启动
+
+---
+
+## 五、UI 草案
+- 左侧：目标批次（单选 + 预览）  
+- 中间：策略选择（单选卡片，复用调度规则）  
+- 右侧：动态事件（资源不可用/任务动态，分布参数输入，火花线预览）  
+- 顶部：基本信息（名称/种子/资源&平台摘要）  
+- 底部：保存配置 / 一键启动仿真

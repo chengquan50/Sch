@@ -198,6 +198,172 @@
         #tasks-page .tab-pane:not(.active) {
             display: none !important;
         }
+
+        /* RuleCard 样式 */
+        .rule-card {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            background: #ffffff;
+            transition: all 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rule-card:hover {
+            border-color: #0d6efd;
+            box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
+            transform: translateY(-2px);
+        }
+
+
+        .rule-card-header {
+            padding: 1rem;
+            border-bottom: 1px solid #e9ecef;
+            background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        }
+
+
+        .rule-name {
+            margin: 0 0 0.5rem 0;
+            font-weight: 600;
+            color: #212529;
+            font-size: 0.95rem;
+            line-height: 1.3;
+        }
+
+        .rule-badges {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .rule-card-body {
+            padding: 1rem;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .rule-params {
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #6c757d;
+        }
+
+        .rule-params:hover::after {
+            content: attr(title);
+            position: absolute;
+            background: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            z-index: 1000;
+            white-space: nowrap;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+        }
+
+        .params-display code {
+            font-size: 0.7rem;
+            color: #6f42c1;
+            background: transparent;
+            padding: 0;
+        }
+
+        .rule-summary {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-bottom: 1rem;
+            flex-grow: 1;
+            line-height: 1.4;
+        }
+
+        .rule-metrics {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .metric {
+            flex: 1;
+            text-align: center;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+
+        .metric-value {
+            display: block;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #0d6efd;
+        }
+
+        .metric-label {
+            display: block;
+            font-size: 0.7rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+
+        .training-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .rule-card-footer {
+            padding: 1rem;
+            border-top: 1px solid #e9ecef;
+            background: #f8f9fa;
+        }
+
+
+        .rule-selector:checked ~ .form-check-label {
+            font-weight: 600;
+            color: #0d6efd;
+        }
+
+        /* 响应式栅格调整 */
+        @media (max-width: 767.98px) {
+            .rule-card {
+                margin-bottom: 1rem;
+            }
+        }
+
+        /* 选中的规则详细信息面板 */
+        #selectedRuleDetails {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .selected-rule-info {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
     </style>
 </head>
 <body>
@@ -226,6 +392,11 @@
             <li class="nav-item">
                 <a class="nav-link" href="#" onclick="showPage('rules-page')">
                     <i class="fas fa-cogs me-2"></i> 调度规则
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showPage('config-page')">
+                    <i class="fas fa-sliders-h me-2"></i> 仿真配置
                 </a>
             </li>
             <li class="nav-item">
@@ -2258,66 +2429,410 @@
 
             <!-- 调度规则页面 -->
             <div id="rules-page" class="page-content">
-                <h2 class="mb-4">调度规则配置</h2>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">调度规则</h2>
+                    <button class="btn btn-primary" id="addNewRuleBtn">
+                        <i class="fas fa-plus me-2"></i>新增调度规则
+                    </button>
+                </div>
+                
+                <!-- 规则卡片网格 -->
+                <div class="row g-3" id="ruleCardsContainer">
+                    <!-- DRL规则卡片 -->
+                    
+                    <!-- DRL_1 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="DRL_1">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">特征交叉注意机制</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-success">DRL</span>
+                                    <span class="badge bg-warning text-dark">Cross-Attention</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">神经网络参数</small>
+                                    <div class="params-display">
+                                        <code>layers: [64,256,128,12]</code><br>
+                                        <code>attention_heads: 8</code><br>
+                                        <code>dropout: 0.1</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">应用特征交叉注意机制增强任务间依赖关系学习能力</p>
+                                <div class="training-status">
+                                    <span class="badge bg-success">已训练</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DRL_2 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="DRL_2">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">生成式策略网络</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-success">DRL</span>
+                                    <span class="badge bg-warning text-dark">Generative</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">神经网络参数</small>
+                                    <div class="params-display">
+                                        <code>layers: [64,256,128,12]</code><br>
+                                        <code>generator_dim: 256</code><br>
+                                        <code>beta: 0.5</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">应用生成式策略网络动态生成调度策略，适应复杂场景</p>
+                                <div class="training-status">
+                                    <span class="badge bg-success">已训练</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- DRL_3 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="DRL_3">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">元学习训练机制</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-success">DRL</span>
+                                    <span class="badge bg-warning text-dark">Meta-Learning</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">神经网络参数</small>
+                                    <div class="params-display">
+                                        <code>layers: [64,256,128,12]</code><br>
+                                        <code>meta_lr: 0.001</code><br>
+                                        <code>adaptation_steps: 5</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">应用元学习训练机制快速适应新的调度场景</p>
+                                <div class="training-status">
+                                    <span class="badge bg-success">已训练</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 启发式规则卡片 -->
+                    
+                    <!-- HR_0 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="HR_0">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">最短总处理时间优先</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-info">Heuristic</span>
+                                    <span class="badge bg-light text-dark">传输+执行优化</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">参数配置</small>
+                                    <div class="params-display">
+                                        <code>weights: [0.6, 0.4]</code><br>
+                                        <code>threshold: 100ms</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">按最短总处理时间（传输+执行）优先调度任务</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HR_1 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="HR_1">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">CPU空闲率最高优先</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-info">Heuristic</span>
+                                    <span class="badge bg-light text-dark">CPU负载均衡</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">参数配置</small>
+                                    <div class="params-display">
+                                        <code>cpu_threshold: 80%</code><br>
+                                        <code>balance_factor: 1.2</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">优先分配到CPU空闲率最高的节点</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HR_2 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="HR_2">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">内存空闲率最高优先</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-info">Heuristic</span>
+                                    <span class="badge bg-light text-dark">内存优化</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">参数配置</small>
+                                    <div class="params-display">
+                                        <code>mem_threshold: 70%</code><br>
+                                        <code>reserve_ratio: 0.15</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">优先分配到内存空闲率最高的节点</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HR_3 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="HR_3">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">最短执行时间优先</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-info">Heuristic</span>
+                                    <span class="badge bg-light text-dark">SJF变种</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">参数配置</small>
+                                    <div class="params-display">
+                                        <code>sort_order: ascending</code><br>
+                                        <code>prediction_window: 5min</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">按预计仿真执行时间从短到长分配</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HR_4 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="HR_4">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">最小传输时间优先</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-info">Heuristic</span>
+                                    <span class="badge bg-light text-dark">网络优化</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">参数配置</small>
+                                    <div class="params-display">
+                                        <code>bandwidth_weight: 0.8</code><br>
+                                        <code>latency_penalty: 2.0</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">优先选择数据传输时间最小的节点</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HR_5 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="HR_5">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">随机最短计算时间</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-info">Heuristic</span>
+                                    <span class="badge bg-light text-dark">随机采样</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">参数配置</small>
+                                    <div class="params-display">
+                                        <code>sample_size: M=5</code><br>
+                                        <code>random_seed: adaptive</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">在M个随机候选方案中，选预计计算时间最短的方案</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HR_6 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="HR_6">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">随机CPU方差最小</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-info">Heuristic</span>
+                                    <span class="badge bg-light text-dark">负载均衡</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">参数配置</small>
+                                    <div class="params-display">
+                                        <code>sample_size: M=5</code><br>
+                                        <code>variance_threshold: 0.1</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">在M个随机候选方案中，选CPU空闲率方差最小的方案</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HR_7 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="HR_7">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">随机总时间最短</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-info">Heuristic</span>
+                                    <span class="badge bg-light text-dark">随机优化</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">参数配置</small>
+                                    <div class="params-display">
+                                        <code>sample_size: M=5</code><br>
+                                        <code>total_time_weight: 1.0</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">在M个随机候选方案中，选总处理时间最短的方案</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- HR_8 -->
+                    <div class="col-xl-4 col-lg-6 col-md-6">
+                        <div class="rule-card" data-rule-id="HR_8">
+                            <div class="rule-card-header">
+                                <h6 class="rule-name">随机时间方差最小</h6>
+                                <div class="rule-badges">
+                                    <span class="badge bg-info">Heuristic</span>
+                                    <span class="badge bg-light text-dark">稳定性优化</span>
+                                </div>
+                            </div>
+                            <div class="rule-card-body">
+                                <div class="rule-params" title="已训练模型，参数仅展示">
+                                    <small class="text-muted">参数配置</small>
+                                    <div class="params-display">
+                                        <code>sample_size: M=5</code><br>
+                                        <code>stability_factor: 1.5</code>
+                                    </div>
+                                </div>
+                                <p class="rule-summary">在M个随机候选方案中，选总处理时间方差最小的方案</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- 仿真配置页面 -->
+            <div id="config-page" class="page-content">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="mb-0">仿真配置</h2>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" id="loadConfigBtn">
+                            <i class="fas fa-upload me-2"></i>加载配置
+                        </button>
+                        <button class="btn btn-success" id="saveConfigBtn">
+                            <i class="fas fa-save me-2"></i>保存配置
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 基本信息区域 -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>基本信息
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="configName" class="form-label">配置名称 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="configName" placeholder="请输入配置名称">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="randomSeed" class="form-label">随机种子</label>
+                                    <input type="number" class="form-control" id="randomSeed" placeholder="空则随机生成">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">资源概况</label>
+                                    <div class="bg-light p-3 rounded">
+                                        <div class="small mb-2">
+                                            <strong>计算节点:</strong> 11个节点 (1个云节点 + 10个边缘节点)
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>计算资源:</strong> 总计176核心, 1408GB内存
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>IoT设备:</strong> 40个设备 (38个在线 + 2个离线)
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>License:</strong> 12/33使用中 (COMSOL 1/3, Fluent 3/4, ANSYS 3/5, TCAD 0/3, STACK 2/6, 等)
+                                        </div>
+                                        <div class="small">
+                                            <strong>专家:</strong> 6/10可用
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">平台信息</label>
+                                    <div class="bg-light p-3 rounded">
+                                        <div class="small mb-1">前端版本: web-v0.12</div>
+                                        <div class="small mb-1">操作系统: Windows 11 Professional</div>
+                                        <div class="small">主机: x86_64 32C/128G</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="row">
-                    <!-- 启发式策略 -->
-                    <div class="col-lg-6 mb-4">
-                        <div class="card">
+                    <!-- 左侧: 任务选择 -->
+                    <div class="col-lg-4 mb-4">
+                        <div class="card h-100">
                             <div class="card-header">
                                 <h5 class="mb-0">
-                                    <i class="fas fa-brain me-2"></i>启发式调度策略
+                                    <i class="fas fa-tasks me-2"></i>任务选择
                                 </h5>
                             </div>
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <label class="form-label">选择启发式策略</label>
-                                    <select class="form-select" id="heuristicStrategy">
-                                        <option value="fifo" selected>FIFO (先来先服务)</option>
-                                        <option value="sjf">SJF (最短作业优先)</option>
-                                        <option value="srtf">SRTF (最短剩余时间优先)</option>
-                                        <option value="priority">Priority (优先级调度)</option>
-                                        <option value="round_robin">Round Robin (轮转调度)</option>
-                                        <option value="earliest_deadline">EDF (最早截止时间优先)</option>
-                                        <option value="critical_path">CPM (关键路径法)</option>
-                                        <option value="resource_aware">Resource-Aware (资源感知)</option>
+                                    <label class="form-label">目标批次 <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="targetBatchSelect">
+                                        <option value="">请选择目标批次</option>
+                                        <option value="target-batch-001">目标批次 001</option>
+                                        <option value="target-batch-002">目标批次 002</option>
+                                        <option value="target-batch-003">目标批次 003</option>
                                     </select>
                                 </div>
                                 
-                                <div class="mb-3">
-                                    <label class="form-label">策略参数配置</label>
-                                    <div class="border rounded p-3">
-                                        <div class="row">
-                                            <div class="col-md-6 mb-2">
-                                                <label class="form-label small">时间片长度 (ms)</label>
-                                                <input type="number" class="form-control form-control-sm" value="100" min="10" max="1000">
-                                            </div>
-                                            <div class="col-md-6 mb-2">
-                                                <label class="form-label small">优先级权重</label>
-                                                <input type="range" class="form-range" min="0.1" max="2.0" step="0.1" value="1.0">
-                                            </div>
+                                <div id="batchPreview" class="d-none">
+                                    <h6>批次预览</h6>
+                                    <div class="bg-light p-3 rounded">
+                                        <div class="small mb-2">
+                                            <strong>任务数:</strong> <span id="taskCount">-</span>个
                                         </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle me-2"></i>
-                                    <strong>当前策略：FIFO</strong><br>
-                                    <small>按任务到达顺序进行调度，适用于批处理场景。平均等待时间较长，但实现简单。</small>
-                                </div>
-                                
-                                <h6 class="mt-4">策略性能预估</h6>
-                                <div class="row">
-                                    <div class="col-6">
-                                        <div class="text-center">
-                                            <div class="h4 text-primary">12.3min</div>
-                                            <small class="text-muted">预计Makespan</small>
+                                        <div class="small mb-2">
+                                            <strong>任务类型:</strong>
+                                            <div id="taskTypes"></div>
                                         </div>
-                                    </div>
-                                    <div class="col-6">
-                                        <div class="text-center">
-                                            <div class="h4 text-success">78%</div>
-                                            <small class="text-muted">资源利用率</small>
+                                        <div class="small">
+                                            <strong>估算子任务总量:</strong> <span id="estimatedSubtasks">-</span>个
                                         </div>
                                     </div>
                                 </div>
@@ -2325,138 +2840,326 @@
                         </div>
                     </div>
                     
-                    <!-- DRL策略配置 -->
-                    <div class="col-lg-6 mb-4">
-                        <div class="card">
+                    <!-- 中间: 策略选择 -->
+                    <div class="col-lg-4 mb-4">
+                        <div class="card h-100">
                             <div class="card-header">
                                 <h5 class="mb-0">
-                                    <i class="fas fa-robot me-2"></i>DRL调度策略
+                                    <i class="fas fa-brain me-2"></i>策略选择
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="enableDRL" checked>
-                                    <label class="form-check-label" for="enableDRL">
-                                        <strong>启用深度强化学习调度</strong>
-                                    </label>
+                                <div class="mb-3">
+                                    <label class="form-label">调度规则 <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="policySelect">
+                                        <option value="">请选择调度策略</option>
+                                        <optgroup label="DRL规则">
+                                            <option value="DRL_1">特征交叉注意机制</option>
+                                            <option value="DRL_2">生成式策略网络</option>
+                                            <option value="DRL_3">元学习训练机制</option>
+                                        </optgroup>
+                                        <optgroup label="启发式规则">
+                                            <option value="HR_0">最短总处理时间优先</option>
+                                            <option value="HR_1">CPU空闲率最高优先</option>
+                                            <option value="HR_2">内存空闲率最高优先</option>
+                                            <option value="HR_3">最短执行时间优先</option>
+                                            <option value="HR_4">最小传输时间优先</option>
+                                            <option value="HR_5">随机最短计算时间</option>
+                                            <option value="HR_6">随机CPU负载平衡</option>
+                                            <option value="HR_7">随机最短总时间</option>
+                                            <option value="HR_8">随机最小时间方差</option>
+                                        </optgroup>
+                                    </select>
                                 </div>
                                 
-                                <hr>
-                                
-                                <h6>DRL模块配置</h6>
-                                
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="crossAttention" checked>
-                                    <label class="form-check-label" for="crossAttention">
-                                        <strong>特征交叉注意机制</strong><br>
-                                        <small class="text-muted">增强任务间依赖关系的学习能力</small>
-                                    </label>
-                                </div>
-                                
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="generativePolicy" checked>
-                                    <label class="form-check-label" for="generativePolicy">
-                                        <strong>生成式策略网络</strong><br>
-                                        <small class="text-muted">动态生成调度策略，适应复杂场景</small>
-                                    </label>
-                                </div>
-                                
-                                <div class="form-check form-switch mb-3">
-                                    <input class="form-check-input" type="checkbox" id="metaTraining">
-                                    <label class="form-check-label" for="metaTraining">
-                                        <strong>元训练机制</strong><br>
-                                        <small class="text-muted">快速适应新的调度场景</small>
-                                    </label>
-                                </div>
-                                
-                                <hr>
-                                
-                                <h6>训练参数</h6>
-                                <div class="row">
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label small">学习率</label>
-                                        <select class="form-select form-select-sm">
-                                            <option>0.001</option>
-                                            <option selected>0.01</option>
-                                            <option>0.1</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <label class="form-label small">折扣因子</label>
-                                        <input type="number" class="form-control form-control-sm" value="0.95" min="0.1" max="1.0" step="0.05">
+                                <div id="policyPreview" class="d-none">
+                                    <h6>策略参数</h6>
+                                    <div class="bg-light p-3 rounded">
+                                        <div id="policyParams"></div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 右侧: 动态事件 -->
+                    <div class="col-lg-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-random me-2"></i>动态事件
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- 资源不可用事件 -->
+                                <div class="mb-4">
+                                    <h6>资源不可用</h6>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="enableNodeDown">
+                                        <label class="form-check-label" for="enableNodeDown">
+                                            启用节点下线事件
+                                        </label>
+                                    </div>
+                                    <div id="nodeDownConfig" class="ms-3 d-none">
+                                        <div class="mb-2">
+                                            <label class="form-label small">截断类型 (控制触发阈值)</label>
+                                            <select class="form-select form-select-sm" id="nodeDownSigma">
+                                                <option value="2">2σ 截断</option>
+                                                <option value="3" selected>3σ 截断</option>
+                                                <option value="4">4σ 截断</option>
+                                            </select>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-6">
+                                                <label class="form-label small">下线时间(均值)</label>
+                                                <input type="number" class="form-control form-control-sm" id="downDurationMean" value="120">
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small">标准差</label>
+                                                <input type="number" class="form-control form-control-sm" id="downDurationStd" value="40">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 
-                                <div class="alert alert-success mt-3">
-                                    <i class="fas fa-check-circle me-2"></i>
-                                    <strong>模型状态：已训练</strong><br>
-                                    <small>在1000个场景上完成训练，准确率87.3%</small>
+                                <!-- 任务动态事件 -->
+                                <div class="mb-3">
+                                    <h6>任务动态</h6>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="enableTaskInsert">
+                                        <label class="form-check-label" for="enableTaskInsert">
+                                            任务插入事件
+                                        </label>
+                                    </div>
+                                    <div id="taskInsertConfig" class="ms-3 d-none">
+                                        <div class="mb-2">
+                                            <label class="form-label small">截断类型 (控制触发阈值)</label>
+                                            <select class="form-select form-select-sm" id="taskInsertSigma">
+                                                <option value="2">2σ 截断</option>
+                                                <option value="3" selected>3σ 截断</option>
+                                                <option value="4">4σ 截断</option>
+                                            </select>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-6">
+                                                <label class="form-label small">任务大小(均值)</label>
+                                                <input type="number" class="form-control form-control-sm" id="taskSizeMean" value="2.0" step="0.1">
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small">标准差</label>
+                                                <input type="number" class="form-control form-control-sm" id="taskSizeStd" value="0.7" step="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="enableSubtaskInsert">
+                                        <label class="form-check-label" for="enableSubtaskInsert">
+                                            子任务插入事件
+                                        </label>
+                                    </div>
+                                    <div id="subtaskInsertConfig" class="ms-3 d-none">
+                                        <div class="mb-2">
+                                            <label class="form-label small">截断类型 (控制触发阈值)</label>
+                                            <select class="form-select form-select-sm" id="subtaskInsertSigma">
+                                                <option value="2">2σ 截断</option>
+                                                <option value="3" selected>3σ 截断</option>
+                                                <option value="4">4σ 截断</option>
+                                            </select>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-6">
+                                                <label class="form-label small">扩展因子(均值)</label>
+                                                <input type="number" class="form-control form-control-sm" id="fanoutMean" value="3.0" step="0.1" min="1">
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small">标准差</label>
+                                                <input type="number" class="form-control form-control-sm" id="fanoutStd" value="1.0" step="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="enableSubtaskRetry">
+                                        <label class="form-check-label" for="enableSubtaskRetry">
+                                            子任务重试事件
+                                        </label>
+                                    </div>
+                                    <div id="subtaskRetryConfig" class="ms-3 d-none">
+                                        <div class="mb-2">
+                                            <label class="form-label small">截断类型 (控制触发阈值)</label>
+                                            <select class="form-select form-select-sm" id="subtaskRetrySigma">
+                                                <option value="2">2σ 截断</option>
+                                                <option value="3" selected>3σ 截断</option>
+                                                <option value="4">4σ 截断</option>
+                                            </select>
+                                        </div>
+                                        <div class="row mb-2">
+                                            <div class="col-6">
+                                                <label class="form-label small">重试概率(均值)</label>
+                                                <input type="number" class="form-control form-control-sm" id="retryProbMean" value="0.05" step="0.01" min="0" max="1">
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small">标准差</label>
+                                                <input type="number" class="form-control form-control-sm" id="retryProbStd" value="0.02" step="0.01">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 事件预览 -->
+                                <div class="small text-muted">
+                                    <i class="fas fa-chart-line me-1"></i>事件预览图表将在这里显示
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <!-- 策略对比 -->
+                <!-- 配置预览 -->
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            <i class="fas fa-chart-bar me-2"></i>策略性能对比
+                            <i class="fas fa-eye me-2"></i>配置预览
                         </h5>
                     </div>
                     <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>策略</th>
-                                        <th>平均Makespan</th>
-                                        <th>资源利用率</th>
-                                        <th>任务成功率</th>
-                                        <th>平均等待时间</th>
-                                        <th>适用场景</th>
-                                        <th>状态</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr class="table-success">
-                                        <td><strong>DRL (全开)</strong></td>
-                                        <td><span class="badge bg-success">8.7min</span></td>
-                                        <td>89.2%</td>
-                                        <td>96.8%</td>
-                                        <td>1.3min</td>
-                                        <td>复杂动态场景</td>
-                                        <td><span class="badge bg-success">推荐</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td>FIFO</td>
-                                        <td>12.3min</td>
-                                        <td>76.4%</td>
-                                        <td>94.2%</td>
-                                        <td>3.8min</td>
-                                        <td>简单批处理</td>
-                                        <td><span class="badge bg-primary">当前</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td>SJF</td>
-                                        <td>10.1min</td>
-                                        <td>82.1%</td>
-                                        <td>95.4%</td>
-                                        <td>2.1min</td>
-                                        <td>已知执行时间</td>
-                                        <td><span class="badge bg-secondary">可选</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td>Priority</td>
-                                        <td>11.5min</td>
-                                        <td>79.8%</td>
-                                        <td>93.7%</td>
-                                        <td>2.9min</td>
-                                        <td>有优先级要求</td>
-                                        <td><span class="badge bg-secondary">可选</span></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>当前配置摘要</h6>
+                                <div class="bg-light p-3 rounded">
+                                    <div id="configSummary">
+                                        <div class="text-muted">请填写必要信息后查看预览</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>验证状态</h6>
+                                <div class="bg-light p-3 rounded">
+                                    <div id="validationStatus">
+                                        <div class="text-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>配置未完成
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 历史配置列表 -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>历史配置
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="historicalConfigs">
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-secondary">
+                                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">LCD-ITO-窗口-DRL-交叉注意</h6>
+                                        <span class="badge bg-secondary">已保存</span>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div class="small mb-2">
+                                            <strong>配置 ID:</strong> cfg-20250824-001
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>目标批次:</strong> target-batch-002
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>调度策略:</strong> DRL_1 (特征交叉注意机制)
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>随机种子:</strong> 12345
+                                        </div>
+                                        <div class="small text-muted mb-2">
+                                            创建时间: 2024-08-24 15:30:00
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="loadHistoricalConfig('cfg-20250824-001')">
+                                                <i class="fas fa-upload me-1"></i>加载
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteHistoricalConfig('cfg-20250824-001')">
+                                                <i class="fas fa-trash me-1"></i>删除
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-secondary">
+                                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">LED-MOCVD-启发式-最短时间</h6>
+                                        <span class="badge bg-secondary">已保存</span>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div class="small mb-2">
+                                            <strong>配置 ID:</strong> cfg-20250824-002
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>目标批次:</strong> target-batch-002
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>调度策略:</strong> HR_0 (最短总处理时间优先)
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>随机种子:</strong> 54321
+                                        </div>
+                                        <div class="small text-muted mb-2">
+                                            创建时间: 2024-08-23 09:45:00
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="loadHistoricalConfig('cfg-20250824-002')">
+                                                <i class="fas fa-upload me-1"></i>加载
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteHistoricalConfig('cfg-20250824-002')">
+                                                <i class="fas fa-trash me-1"></i>删除
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <div class="card border-success">
+                                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">LCD-PI-烘烤-DRL-生成式</h6>
+                                        <span class="badge bg-success">待执行</span>
+                                    </div>
+                                    <div class="card-body p-3">
+                                        <div class="small mb-2">
+                                            <strong>配置 ID:</strong> cfg-20250825-003
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>目标批次:</strong> target-batch-003
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>调度策略:</strong> DRL_2 (生成式策略网络)
+                                        </div>
+                                        <div class="small mb-2">
+                                            <strong>随机种子:</strong> 99999
+                                        </div>
+                                        <div class="small text-muted mb-2">
+                                            创建时间: 2024-08-25 11:20:00
+                                        </div>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-primary" onclick="executeConfig('cfg-20250825-003')">
+                                                <i class="fas fa-play me-1"></i>执行
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-primary" onclick="loadHistoricalConfig('cfg-20250825-003')">
+                                                <i class="fas fa-upload me-1"></i>加载
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" onclick="deleteHistoricalConfig('cfg-20250825-003')">
+                                                <i class="fas fa-trash me-1"></i>删除
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3187,6 +3890,919 @@
     
     // 初始化标签管理器
     new TabManager();
+    
+    // RuleCard 管理器
+    class RuleCardManager {
+        constructor() {
+            this.ruleData = this.initRuleData();
+            this.init();
+        }
+        
+        init() {
+            document.addEventListener('DOMContentLoaded', () => {
+                this.bindEvents();
+            });
+        }
+        
+        // 初始化规则数据
+        initRuleData() {
+            return {
+                'HR_0': {
+                    name: '最短总处理时间优先',
+                    category: 'Heuristic',
+                    description: '按最短总处理时间（传输+执行）优先调度任务，优化整体系统吞吐量。该策略综合考虑数据传输时间和计算执行时间，通过权重分配来平衡两者的重要性。',
+                    params: {
+                        '权重配置': '传输时间权重 0.6，执行时间权重 0.4',
+                        '阈值设置': '最小处理时间阈值 100ms',
+                        '适用场景': '网络传输开销较大的分布式环境'
+                    },
+                    metrics: { makespan: '8.9min', utilization: '84%' },
+                    status: ['就绪', '已优化']
+                },
+                'HR_1': {
+                    name: 'CPU空闲率最高优先',
+                    category: 'Heuristic',
+                    description: '优先选择CPU空闲率最高的节点进行任务分配，实现CPU负载的动态均衡，避免某些节点过载而其他节点闲置。',
+                    params: {
+                        'CPU阈值': '80% CPU使用率上限',
+                        '均衡因子': '1.2 负载均衡权重',
+                        '适用场景': 'CPU密集型任务调度'
+                    },
+                    metrics: { makespan: '9.2min', utilization: '88%' },
+                    status: ['就绪', '负载均衡']
+                },
+                'HR_2': {
+                    name: '内存空闲率最高优先',
+                    category: 'Heuristic',
+                    description: '优先选择内存空闲率最高的节点进行任务分配，特别适用于内存密集型应用，确保充足的内存资源。',
+                    params: {
+                        '内存阈值': '70% 内存使用率上限',
+                        '保留比例': '0.15 内存保留率',
+                        '适用场景': '大数据处理和内存密集型仿真'
+                    },
+                    metrics: { makespan: '9.5min', utilization: '82%' },
+                    status: ['就绪', '内存优化']
+                },
+                'HR_3': {
+                    name: '最短执行时间优先',
+                    category: 'Heuristic',
+                    description: '按预计仿真执行时间从短到长进行任务调度，这是经典SJF算法的改进版本，适用于已知任务执行时间的场景。',
+                    params: {
+                        '排序方式': '按执行时间升序排列',
+                        '预测窗口': '5分钟时间窗口',
+                        '适用场景': '批处理和已知执行时间的任务'
+                    },
+                    metrics: { makespan: '10.1min', utilization: '79%' },
+                    status: ['就绪', 'SJF改进']
+                },
+                'HR_4': {
+                    name: '最小传输时间优先',
+                    category: 'Heuristic',
+                    description: '优先选择数据传输时间最小的节点，特别适用于数据密集型应用，减少网络传输开销。',
+                    params: {
+                        '带宽权重': '0.8 带宽优先级权重',
+                        '延迟惩罚': '2.0 网络延迟惩罚因子',
+                        '适用场景': '数据密集型分布式计算'
+                    },
+                    metrics: { makespan: '9.8min', utilization: '81%' },
+                    status: ['就绪', '网络优化']
+                },
+                'HR_5': {
+                    name: '随机最短计算时间',
+                    category: 'Heuristic',
+                    description: '在M个随机候选方案中选择预计计算时间最短的方案，结合随机性和优化性，避免局部最优解。',
+                    params: {
+                        '采样规模': 'M=5 候选方案数量',
+                        '随机种子': '自适应种子策略',
+                        '适用场景': '复杂优化环境下的负载均衡'
+                    },
+                    metrics: { makespan: '9.6min', utilization: '83%' },
+                    status: ['就绪', '随机优化']
+                },
+                'HR_6': {
+                    name: '随机CPU方差最小',
+                    category: 'Heuristic',
+                    description: '在M个随机候选方案中选择CPU空闲率方差最小的方案，实现更稳定的负载分布。',
+                    params: {
+                        '采样规模': 'M=5 候选方案数量',
+                        '方差阈值': '0.1 CPU方差上限',
+                        '适用场景': '要求稳定性能的计算场景'
+                    },
+                    metrics: { makespan: '10.3min', utilization: '85%' },
+                    status: ['就绪', '方差优化']
+                },
+                'HR_7': {
+                    name: '随机总时间最短',
+                    category: 'Heuristic',
+                    description: '在M个随机候选方案中选择总处理时间最短的方案，结合随机采样和全局优化。',
+                    params: {
+                        '采样规模': 'M=5 候选方案数量',
+                        '时间权重': '1.0 总时间权重',
+                        '适用场景': '追求最短完成时间的任务调度'
+                    },
+                    metrics: { makespan: '9.1min', utilization: '86%' },
+                    status: ['就绪', '时间优化']
+                },
+                'HR_8': {
+                    name: '随机时间方差最小',
+                    category: 'Heuristic',
+                    description: '在M个随机候选方案中选择总处理时间方差最小的方案，确保调度结果的稳定性和可预测性。',
+                    params: {
+                        '采样规模': 'M=5 候选方案数量',
+                        '稳定因子': '1.5 稳定性权重',
+                        '适用场景': '要求调度稳定性的生产环境'
+                    },
+                    metrics: { makespan: '10.5min', utilization: '80%' },
+                    status: ['就绪', '稳定性优化']
+                },
+                'DRL_1': {
+                    name: '特征交叉注意机制',
+                    category: 'DRL',
+                    description: '应用特征交叉注意机制增强任务间依赖关系学习能力。该模型通过多头注意力机制捕获任务间的复杂依赖关系，提高调度决策的准确性。',
+                    params: {
+                        '网络结构': '[64,256,128,12] 层神经元配置',
+                        '注意力头': '8个多头注意力机制',
+                        '正则化': '0.1 Dropout防止过拟合'
+                    },
+                    metrics: { makespan: '8.7min', utilization: '89%' },
+                    status: ['已训练', '准确率: 92.1%'],
+                    training: true
+                },
+                'DRL_2': {
+                    name: '生成式策略网络',
+                    category: 'DRL',
+                    description: '应用生成式策略网络动态生成调度策略，适应复杂场景。该模型能够根据当前系统状态动态生成最优的调度策略。',
+                    params: {
+                        '网络结构': '[128,512,256,16] 生成器架构',
+                        '生成维度': '256维策略空间',
+                        'Beta参数': '0.5 生成平衡因子'
+                    },
+                    metrics: { makespan: '8.5min', utilization: '91%' },
+                    status: ['已训练', '准确率: 94.3%'],
+                    training: true
+                },
+                'DRL_3': {
+                    name: '元学习训练机制',
+                    category: 'DRL',
+                    description: '应用元学习训练机制快速适应新的调度场景。该模型具备快速学习能力，能够在少量样本下适应新的调度环境。',
+                    params: {
+                        '网络结构': '[96,384,192,8] 元学习架构',
+                        '元学习率': '0.001 自适应学习率',
+                        '适应步数': '5步快速适应'
+                    },
+                    metrics: { makespan: '8.9min', utilization: '87%' },
+                    status: ['已训练', '准确率: 90.7%'],
+                    training: true
+                }
+            };
+        }
+        
+        // 绑定事件
+        bindEvents() {
+            // 绑定单选按钮事件
+            document.querySelectorAll('.rule-selector').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        this.updateSelectedRule(e.target.value);
+                    }
+                });
+            });
+            
+            // 绑定卡片点击事件
+            document.querySelectorAll('.rule-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (e.target.type !== 'radio') {
+                        const ruleId = card.getAttribute('data-rule-id');
+                        const radio = card.querySelector('.rule-selector');
+                        radio.checked = true;
+                        this.updateSelectedRule(ruleId);
+                    }
+                });
+            });
+        }
+        
+        // 更新选中的规则
+        updateSelectedRule(ruleId) {
+            this.selectedRule = ruleId;
+            
+            // 更新卡片选中状态
+            document.querySelectorAll('.rule-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            const selectedCard = document.querySelector(`[data-rule-id="${ruleId}"]`);
+            if (selectedCard) {
+                selectedCard.classList.add('selected');
+            }
+            
+            // 更新顶部显示
+            const selectedRuleNameElement = document.getElementById('selectedRuleName');
+            if (selectedRuleNameElement && this.ruleData[ruleId]) {
+                selectedRuleNameElement.textContent = ruleId;
+            }
+            
+            // 更新详细信息
+            this.updateRuleDetails(ruleId);
+        }
+        
+        // 更新规则详细信息
+        updateRuleDetails(ruleId) {
+            const ruleInfo = this.ruleData[ruleId];
+            if (!ruleInfo) return;
+            
+            // 更新详细信息标题
+            const detailRuleNameElement = document.getElementById('detailRuleName');
+            if (detailRuleNameElement) {
+                detailRuleNameElement.textContent = ruleInfo.name;
+            }
+            
+            // 更新描述
+            const detailRuleDescriptionElement = document.getElementById('detailRuleDescription');
+            if (detailRuleDescriptionElement) {
+                detailRuleDescriptionElement.textContent = ruleInfo.description;
+            }
+            
+            // 更新参数详情
+            const detailRuleParamsElement = document.getElementById('detailRuleParams');
+            if (detailRuleParamsElement) {
+                let paramsHtml = '';
+                for (const [key, value] of Object.entries(ruleInfo.params)) {
+                    paramsHtml += `<p><strong>${key}:</strong> ${value}</p>`;
+                }
+                detailRuleParamsElement.innerHTML = paramsHtml;
+            }
+            
+            // 更新性能指标
+            const detailRuleMetricsElement = document.getElementById('detailRuleMetrics');
+            if (detailRuleMetricsElement) {
+                detailRuleMetricsElement.innerHTML = `
+                    <div class="col-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <div class="h4 text-primary">${ruleInfo.metrics.makespan}</div>
+                            <small class="text-muted">预计Makespan</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center p-3 bg-light rounded">
+                            <div class="h4 text-success">${ruleInfo.metrics.utilization}</div>
+                            <small class="text-muted">资源利用率</small>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // 更新状态
+            const detailRuleStatusElement = document.getElementById('detailRuleStatus');
+            if (detailRuleStatusElement) {
+                let statusHtml = '';
+                ruleInfo.status.forEach((status, index) => {
+                    const badgeClass = index === 0 ? 'bg-success' : 'bg-info';
+                    const marginClass = index > 0 ? 'ms-1' : '';
+                    statusHtml += `<span class="badge ${badgeClass} ${marginClass}">${status}</span>`;
+                });
+                detailRuleStatusElement.innerHTML = statusHtml;
+            }
+        }
+        
+        // 获取当前选中的规则
+        getSelectedRule() {
+            return this.selectedRule;
+        }
+    }
+    
+    // 初始化RuleCard管理器
+    new RuleCardManager();
+    
+    // 仿真配置管理器
+    class SimulationConfigManager {
+        constructor() {
+            this.config = {
+                name: '',
+                seed: null,
+                targetBatchId: '',
+                policyId: '',
+                events: {
+                    nodeDown: { enabled: false, params: {} },
+                    taskInsert: { enabled: false, params: {} },
+                    subtaskRetry: { enabled: false, params: {} }
+                }
+            };
+            this.batchData = this.initBatchData();
+            this.policyData = this.initPolicyData();
+            this.init();
+        }
+        
+        init() {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', () => {
+                    this.initSelectors();
+                    this.bindEvents();
+                });
+            } else {
+                // DOM 已经加载完成，直接初始化
+                this.initSelectors();
+                this.bindEvents();
+            }
+        }
+        
+        initSelectors() {
+            console.log('初始化选择器选项...');
+            
+            // 初始化批次选择器
+            const batchSelect = document.getElementById('targetBatchSelect');
+            if (batchSelect) {
+                batchSelect.innerHTML = '<option value="">-- 选择目标批次 --</option>';
+                Object.entries(this.batchData).forEach(([id, batch]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = batch.name;
+                    batchSelect.appendChild(option);
+                });
+                console.log('批次选择器初始化完成');
+            }
+            
+            // 初始化策略选择器
+            const policySelect = document.getElementById('policySelect');
+            if (policySelect) {
+                policySelect.innerHTML = '<option value="">-- 选择调度策略 --</option>';
+                Object.entries(this.policyData).forEach(([id, policy]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = `${policy.name} (${policy.category})`;
+                    policySelect.appendChild(option);
+                });
+                console.log('策略选择器初始化完成');
+            }
+        }
+        
+        initBatchData() {
+            return {
+                'target-batch-001': {
+                    name: '目标批次 001',
+                    taskCount: 10,
+                    types: ['LCD ITO工艺窗口 × 6', '模组AOI参数整定 × 4'],
+                    estimatedSubtasks: 216
+                },
+                'target-batch-002': {
+                    name: '目标批次 002',
+                    taskCount: 10,
+                    types: ['LED 外延MOCVD窗口 × 5', 'MiniLED回流焰 × 5'],
+                    estimatedSubtasks: 350
+                },
+                'target-batch-003': {
+                    name: '目标批次 003',
+                    taskCount: 10,
+                    types: ['LCD PI烘烤曲线 × 8', 'LCD ITO工艺窗口 × 2'],
+                    estimatedSubtasks: 296
+                }
+            };
+        }
+        
+        initPolicyData() {
+            return {
+                'DRL_1': {
+                    name: '特征交叉注意机制',
+                    category: 'DRL',
+                    params: '神经网络: [64,256,128,12]\n注意力头: 8\nDropout: 0.1'
+                },
+                'DRL_2': {
+                    name: '生成式策略网络',
+                    category: 'DRL',
+                    params: '神经网络: [64,256,128,12]\n生成维度: 256\nBeta参数: 0.5'
+                },
+                'DRL_3': {
+                    name: '元学习训练机制',
+                    category: 'DRL',
+                    params: '神经网络: [64,256,128,12]\n元学习率: 0.001\n适应步数: 5'
+                },
+                'HR_0': {
+                    name: '最短总处理时间优先',
+                    category: 'Heuristic',
+                    params: '权重: [0.6, 0.4]\n阈值: 100ms'
+                },
+                'HR_1': {
+                    name: 'CPU空闲率最高优先',
+                    category: 'Heuristic', 
+                    params: 'CPU阈值: 80%\n平衡因子: 1.2'
+                },
+                'HR_2': {
+                    name: '内存空闲率最高优先',
+                    category: 'Heuristic',
+                    params: '内存阈值: 85%\n平衡因子: 1.1'
+                },
+                'HR_3': {
+                    name: '最短执行时间优先',
+                    category: 'Heuristic',
+                    params: '排序方式: 升序\n预测窗口: 5min'
+                },
+                'HR_4': {
+                    name: '最小传输时间优先',
+                    category: 'Heuristic',
+                    params: '带宽阈值: 100Mbps\n距离权重: 0.8'
+                },
+                'HR_5': {
+                    name: '随机最短计算时间',
+                    category: 'Heuristic',
+                    params: '采样规模: M=5\n时间权重: 1.0'
+                },
+                'HR_6': {
+                    name: '随机CPU负载平衡',
+                    category: 'Heuristic',
+                    params: '采样规模: M=5\n方差阈值: 0.1'
+                },
+                'HR_7': {
+                    name: '随机最短总时间',
+                    category: 'Heuristic',
+                    params: '采样规模: M=5\n时间权重: 1.0'
+                },
+                'HR_8': {
+                    name: '随机最小时间方差',
+                    category: 'Heuristic',
+                    params: '采样规模: M=5\n方差阈值: 0.05'
+                }
+            };
+        }
+        
+        bindEvents() {
+            console.log('绑定仿真配置事件...');
+            
+            // 批次选择事件
+            const batchSelect = document.getElementById('targetBatchSelect');
+            if (batchSelect) {
+                console.log('批次选择器元素找到，绑定事件');
+                batchSelect.addEventListener('change', (e) => {
+                    console.log('批次选择变化:', e.target.value);
+                    this.updateBatchPreview(e.target.value);
+                });
+            } else {
+                console.log('未找到批次选择器元素');
+            }
+            
+            // 策略选择事件
+            const policySelect = document.getElementById('policySelect');
+            if (policySelect) {
+                console.log('策略选择器元素找到，绑定事件');
+                policySelect.addEventListener('change', (e) => {
+                    console.log('策略选择变化:', e.target.value);
+                    this.updatePolicyPreview(e.target.value);
+                });
+            } else {
+                console.log('未找到策略选择器元素');
+            }
+            
+            // 动态事件复选框事件
+            const nodeDownCheck = document.getElementById('enableNodeDown');
+            if (nodeDownCheck) {
+                nodeDownCheck.addEventListener('change', (e) => {
+                    this.toggleEventConfig('nodeDownConfig', e.target.checked);
+                });
+            }
+            
+            const taskInsertCheck = document.getElementById('enableTaskInsert');
+            if (taskInsertCheck) {
+                taskInsertCheck.addEventListener('change', (e) => {
+                    this.toggleEventConfig('taskInsertConfig', e.target.checked);
+                });
+            }
+            
+            const subtaskInsertCheck = document.getElementById('enableSubtaskInsert');
+            if (subtaskInsertCheck) {
+                subtaskInsertCheck.addEventListener('change', (e) => {
+                    this.toggleEventConfig('subtaskInsertConfig', e.target.checked);
+                });
+            }
+            
+            const subtaskRetryCheck = document.getElementById('enableSubtaskRetry');
+            if (subtaskRetryCheck) {
+                subtaskRetryCheck.addEventListener('change', (e) => {
+                    this.toggleEventConfig('subtaskRetryConfig', e.target.checked);
+                });
+            }
+            
+            // 配置按钮事件
+            const saveBtn = document.getElementById('saveConfigBtn');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', () => this.saveConfig());
+            }
+            
+            
+            // 表单变化事件
+            const configName = document.getElementById('configName');
+            if (configName) {
+                configName.addEventListener('input', () => this.updateConfigPreview());
+            }
+        }
+        
+        updateBatchPreview(batchId) {
+            console.log('更新批次预览:', batchId);
+            const preview = document.getElementById('batchPreview');
+            const taskCount = document.getElementById('taskCount');
+            const taskTypes = document.getElementById('taskTypes');
+            const estimatedSubtasks = document.getElementById('estimatedSubtasks');
+            
+            console.log('预览元素:', preview, taskCount, taskTypes, estimatedSubtasks);
+            
+            if (!batchId) {
+                if (preview) preview.classList.add('d-none');
+                return;
+            }
+            
+            const batch = this.batchData[batchId];
+            console.log('批次数据:', batch);
+            
+            if (batch && preview && taskCount && taskTypes && estimatedSubtasks) {
+                preview.classList.remove('d-none');
+                taskCount.textContent = batch.taskCount;
+                taskTypes.innerHTML = batch.types.map(type => 
+                    `<div class="badge bg-secondary me-1 mb-1">${type}</div>`
+                ).join('');
+                estimatedSubtasks.textContent = batch.estimatedSubtasks;
+                
+                this.config.targetBatchId = batchId;
+                this.updateConfigPreview();
+                console.log('批次预览更新完成');
+            } else {
+                console.log('批次预览更新失败，缺少元素或数据');
+            }
+        }
+        
+        updatePolicyPreview(policyId) {
+            console.log('更新策略预览:', policyId);
+            const preview = document.getElementById('policyPreview');
+            const params = document.getElementById('policyParams');
+            
+            console.log('策略预览元素:', preview, params);
+            
+            if (!policyId) {
+                if (preview) preview.classList.add('d-none');
+                return;
+            }
+            
+            const policy = this.policyData[policyId];
+            console.log('策略数据:', policy);
+            
+            if (policy && preview && params) {
+                preview.classList.remove('d-none');
+                params.innerHTML = `
+                    <div class="small mb-2">
+                        <strong>类型:</strong> 
+                        <span class="badge ${policy.category === 'DRL' ? 'bg-success' : 'bg-info'}">
+                            ${policy.category}
+                        </span>
+                    </div>
+                    <div class="small">
+                        <strong>参数:</strong><br>
+                        <code style="white-space: pre-line;">${policy.params}</code>
+                    </div>
+                `;
+                
+                this.config.policyId = policyId;
+                this.updateConfigPreview();
+                console.log('策略预览更新完成');
+            } else {
+                console.log('策略预览更新失败，缺少元素或数据');
+            }
+        }
+        
+        toggleEventConfig(configId, enabled) {
+            console.log('切换事件配置:', configId, enabled);
+            const config = document.getElementById(configId);
+            if (config) {
+                if (enabled) {
+                    config.classList.remove('d-none');
+                    console.log('显示配置:', configId);
+                } else {
+                    config.classList.add('d-none');
+                    console.log('隐藏配置:', configId);
+                }
+            } else {
+                console.log('未找到配置元素:', configId);
+            }
+            this.updateConfigPreview();
+        }
+        
+        updateConfigPreview() {
+            const summary = document.getElementById('configSummary');
+            const validation = document.getElementById('validationStatus');
+            
+            const name = document.getElementById('configName').value;
+            const batch = this.config.targetBatchId;
+            const policy = this.config.policyId;
+            
+            let summaryHtml = '';
+            let isValid = true;
+            let errors = [];
+            
+            if (name) {
+                summaryHtml += `<div class="mb-1"><strong>配置名称:</strong> ${name}</div>`;
+            } else {
+                errors.push('配置名称未填写');
+                isValid = false;
+            }
+            
+            if (batch && this.batchData[batch]) {
+                summaryHtml += `<div class="mb-1"><strong>目标批次:</strong> ${this.batchData[batch].name}</div>`;
+            } else {
+                errors.push('未选择目标批次');
+                isValid = false;
+            }
+            
+            if (policy && this.policyData[policy]) {
+                summaryHtml += `<div class="mb-1"><strong>调度策略:</strong> ${this.policyData[policy].name}</div>`;
+            } else {
+                errors.push('未选择调度策略');
+                isValid = false;
+            }
+            
+            const seed = document.getElementById('randomSeed').value;
+            if (seed) {
+                summaryHtml += `<div class="mb-1"><strong>随机种子:</strong> ${seed}</div>`;
+            }
+            
+            if (summaryHtml) {
+                summary.innerHTML = summaryHtml;
+            } else {
+                summary.innerHTML = '<div class="text-muted">请填写必要信息后查看预览</div>';
+            }
+            
+            // 更新验证状态
+            if (isValid) {
+                validation.innerHTML = '<div class="text-success"><i class="fas fa-check-circle me-1"></i>配置完成，可以保存或启动</div>';
+            } else {
+                validation.innerHTML = `
+                    <div class="text-warning mb-2">
+                        <i class="fas fa-exclamation-triangle me-1"></i>配置未完成
+                    </div>
+                    <div class="small">${errors.map(err => `• ${err}`).join('<br>')}</div>
+                `;
+            }
+            
+            // 更新按钮状态
+            const saveBtn = document.getElementById('saveConfigBtn');
+            if (saveBtn) saveBtn.disabled = !isValid;
+        }
+        
+        saveConfig() {
+            console.log('开始保存配置...');
+            const name = document.getElementById('configName').value;
+            const seed = document.getElementById('randomSeed').value || null;
+            
+            console.log('配置名称:', name, '随机种子:', seed);
+            console.log('当前配置:', this.config);
+            
+            const config = {
+                id: `cfg-${Date.now()}`,
+                name: name,
+                seed: seed ? parseInt(seed) : null,
+                targetBatchId: this.config.targetBatchId,
+                policyId: this.config.policyId,
+                resourceSummary: {
+                    computeNodes: { count: 11, cloudNodes: 1, edgeNodes: 10, totalCores: 176, totalMemGB: 1408 },
+                    iotDevices: { total: 40, online: 38, offline: 2 },
+                    licenses: { 
+                        total: 33, used: 12, 
+                        details: { "COMSOL": "1/3", "Fluent": "3/4", "ANSYS": "3/5", "TCAD": "0/3", "STACK": "2/6", "Lumerical": "1/2", "SimSoft": "1/4", "OptiSystem": "0/1", "Silvaco": "1/3" }
+                    },
+                    experts: { available: 6, total: 10 }
+                },
+                platformInfo: {
+                    frontBuild: "web-v0.12",
+                    os: "Windows 11 Professional",
+                    host: "x86_64 32C/128G"
+                },
+                events: this.getEventConfig()
+            };
+            
+            // 真正保存到历史配置列表
+            config.createdAt = new Date().toLocaleString('zh-CN');
+            this.addToHistoricalConfigs(config);
+            
+            console.log('保存配置:', config);
+            this.showNotification('配置保存成功！', 'success');
+        }
+        
+        addToHistoricalConfigs(config) {
+            const container = document.getElementById('historicalConfigs');
+            const policyName = this.policyData[config.policyId] ? this.policyData[config.policyId].name : '未知策略';
+            const batchName = this.batchData[config.targetBatchId] ? this.batchData[config.targetBatchId].name : '未知批次';
+            
+            const configCard = document.createElement('div');
+            configCard.className = 'col-md-6 mb-3';
+            configCard.innerHTML = `
+                <div class="card border-secondary">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">${config.name}</h6>
+                        <span class="badge bg-secondary">已保存</span>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="small mb-2">
+                            <strong>配置 ID:</strong> ${config.id}
+                        </div>
+                        <div class="small mb-2">
+                            <strong>目标批次:</strong> ${config.targetBatchId}
+                        </div>
+                        <div class="small mb-2">
+                            <strong>调度策略:</strong> ${config.policyId} (${policyName})
+                        </div>
+                        <div class="small mb-2">
+                            <strong>随机种子:</strong> ${config.seed || '随机'}
+                        </div>
+                        <div class="small text-muted mb-2">
+                            创建时间: ${config.createdAt}
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary" onclick="loadHistoricalConfig('${config.id}')">
+                                <i class="fas fa-upload me-1"></i>加载
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteHistoricalConfig('${config.id}')">
+                                <i class="fas fa-trash me-1"></i>删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 在列表顶部插入新配置
+            container.insertBefore(configCard, container.firstChild);
+            
+            // 将配置数据存储在全局变量中供加载使用
+            if (!window.savedConfigs) {
+                window.savedConfigs = {};
+            }
+            window.savedConfigs[config.id] = config;
+        }
+        
+        
+        getEventConfig() {
+            const events = [];
+            
+            // 节点下线事件
+            if (document.getElementById('enableNodeDown').checked) {
+                events.push({
+                    type: 'node_down',
+                    nodeScope: ['edge1', 'edge2', 'edge3'],
+                    sigma: parseInt(document.getElementById('nodeDownSigma').value) || 3,
+                    durationSec: {
+                        dist: 'normal',
+                        mean: parseInt(document.getElementById('downDurationMean').value) || 120,
+                        std: parseInt(document.getElementById('downDurationStd').value) || 40
+                    },
+                    cooldownSec: 60
+                });
+            }
+            
+            // 任务插入事件
+            if (document.getElementById('enableTaskInsert').checked) {
+                events.push({
+                    type: 'task_insert',
+                    sigma: parseInt(document.getElementById('taskInsertSigma').value) || 3,
+                    sizeHint: {
+                        dist: 'normal',
+                        mean: parseFloat(document.getElementById('taskSizeMean').value) || 2.0,
+                        std: parseFloat(document.getElementById('taskSizeStd').value) || 0.7
+                    }
+                });
+            }
+            
+            // 子任务插入事件
+            if (document.getElementById('enableSubtaskInsert').checked) {
+                events.push({
+                    type: 'subtask_insert',
+                    sigma: parseInt(document.getElementById('subtaskInsertSigma').value) || 3,
+                    fanout: {
+                        dist: 'normal',
+                        mean: parseFloat(document.getElementById('fanoutMean').value) || 3.0,
+                        std: parseFloat(document.getElementById('fanoutStd').value) || 1.0
+                    }
+                });
+            }
+            
+            // 子任务重试事件
+            if (document.getElementById('enableSubtaskRetry').checked) {
+                events.push({
+                    type: 'subtask_retry',
+                    sigma: parseInt(document.getElementById('subtaskRetrySigma').value) || 3,
+                    probPerExec: {
+                        dist: 'normal',
+                        mean: parseFloat(document.getElementById('retryProbMean').value) || 0.05,
+                        std: parseFloat(document.getElementById('retryProbStd').value) || 0.02
+                    }
+                });
+            }
+            
+            return events;
+        }
+        
+        showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification && notification.parentNode) {
+                    notification.remove();
+                }
+            }, 3000);
+        }
+    }
+    
+    // 初始化仿真配置管理器
+    new SimulationConfigManager();
+    
+    // 全局函数处理历史配置
+    function loadHistoricalConfig(configId) {
+        console.log('加载历史配置:', configId);
+        
+        // 初始化全局配置存储
+        if (!window.savedConfigs) {
+            window.savedConfigs = {
+                'cfg-20250824-001': {
+                    name: 'LCD-ITO-窗口-DRL-交叉注意',
+                    seed: 12345,
+                    targetBatchId: 'target-batch-002',
+                    policyId: 'DRL_1'
+                },
+                'cfg-20250824-002': {
+                    name: 'LED-MOCVD-启发式-最短时间',
+                    seed: 54321,
+                    targetBatchId: 'target-batch-002',
+                    policyId: 'HR_0'
+                },
+                'cfg-20250825-003': {
+                    name: 'LCD-PI-烘烤-DRL-生成式',
+                    seed: 99999,
+                    targetBatchId: 'target-batch-003',
+                    policyId: 'DRL_2'
+                }
+            };
+        }
+        
+        const config = window.savedConfigs[configId];
+        if (config) {
+            // 填充表单
+            document.getElementById('configName').value = config.name;
+            document.getElementById('randomSeed').value = config.seed;
+            document.getElementById('targetBatchSelect').value = config.targetBatchId;
+            document.getElementById('policySelect').value = config.policyId;
+            
+            // 触发更新事件
+            document.getElementById('targetBatchSelect').dispatchEvent(new Event('change'));
+            document.getElementById('policySelect').dispatchEvent(new Event('change'));
+            document.getElementById('configName').dispatchEvent(new Event('input'));
+            
+            showNotification('配置加载成功！', 'success');
+        }
+    }
+    
+    function deleteHistoricalConfig(configId) {
+        if (confirm('确认删除这个配置吗？')) {
+            // 查找并删除相应的配置卡片
+            const configCards = document.querySelectorAll('#historicalConfigs .card');
+            configCards.forEach(card => {
+                const buttons = card.querySelectorAll('button[onclick*="' + configId + '"]');
+                if (buttons.length > 0) {
+                    card.parentElement.remove(); // 删除整个col元素
+                }
+            });
+            
+            console.log('删除配置:', configId);
+            showNotification('配置已删除', 'success');
+        }
+    }
+    
+    function executeConfig(configId) {
+        console.log('执行配置:', configId);
+        showNotification('正在执行配置...请稍后查看仿真运行页面', 'info');
+        
+        // 跳转到仿真运行页面
+        setTimeout(() => {
+            showPage('simulation-page');
+        }, 2000);
+    }
+    
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        notification.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            if (notification && notification.parentNode) {
+                notification.remove();
+            }
+        }, 3000);
+    }
     </script>
 </body>
 </html>
